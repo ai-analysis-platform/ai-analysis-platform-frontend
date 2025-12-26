@@ -22,10 +22,10 @@ export default function Providers({ children }: ProvidersProps) {
           theme={{
             token: {
               colorPrimary: "#7f6bff",
-              colorBgBase: "transparent",
+              colorBgBase: "#ffffff",
               fontFamily: "var(--font-sans)",
               colorTextBase: "var(--foreground)",
-              colorBorder: "#1d2438",
+              colorBorder: "#e5e7eb",
             },
             algorithm: [antdTheme.defaultAlgorithm, antdTheme.compactAlgorithm],
           }}

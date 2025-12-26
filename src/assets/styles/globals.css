@@ -1,14 +1,14 @@
 :root {
   color-scheme: light;
-  --background: #060b16;
-  --card: #0e1424;
-  --card-border: #1d2438;
-  --foreground: #f5f7ff;
-  --muted: #a0a8c3;
+  --background: #ffffff;
+  --card: #ffffff;
+  --card-border: #e5e7eb;
+  --foreground: #111827;
+  --muted: #6b7280;
   --accent: #7f6bff;
-  --success: #36cfc9;
-  --warning: #ffc53d;
-  --danger: #ff7875;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
   --font-sans: var(
     --font-geist-sans,
     "Inter",
@@ -45,17 +45,4 @@ a {
 body,
 html {
   height: 100%;
-}
-
-.ant-layout {
-  background: transparent;
-}
-
-.ant-card {
-  background: var(--card);
-  border-color: var(--card-border);
-}
-
-.ant-typography-secondary {
-  color: var(--muted) !important;
 }
