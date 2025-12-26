@@ -53,9 +53,6 @@ export function transformToLineData(chartData: ChartData) {
  */
 export function getAntChartConfig(chartConfig: ChartConfig): {
   data: Array<Record<string, string | number>>;
-  xField: string;
-  yField: string | string[];
-  color?: string | string[];
   [key: string]: unknown;
 } {
   const { type, data, options } = chartConfig;

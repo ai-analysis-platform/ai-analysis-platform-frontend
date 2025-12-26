@@ -27,7 +27,7 @@ export default function ReportEditPage() {
       setReport(foundReport);
     } else {
       // 임시 리포트 생성 (실제로는 API에서 가져옴)
-      const tempReport = {
+      const tempReport: Report = {
         id: reportId,
         title: "반도체 시장의 HBM 트렌드 분석 리포트",
         createdAt: Date.now(),
