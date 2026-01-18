@@ -5,6 +5,7 @@ import { Layout, Menu } from "antd";
 import {
   CalendarOutlined,
   HomeOutlined,
+  KeyOutlined,
   SettingOutlined,
   UserOutlined,
 } from "@ant-design/icons";
@@ -24,6 +25,12 @@ const NAV_ITEMS: Array<{
   disabled?: boolean;
 }> = [
   {
+    key: "company",
+    label: "회사 선택",
+    icon: <KeyOutlined />,
+    href: "/",
+  },
+  {
     key: "keywords",
     label: "키워드 설정",
     icon: <SettingOutlined />,
@@ -41,7 +48,7 @@ export default function AppShell({ children }: AppShellProps) {
 
   const selectedKey = useMemo(() => {
     if (!pathname) return "daily";
-    if (pathname === "/") return "";
+    if (pathname === "/") return "company";
     if (pathname.startsWith("/setup/keywords")) return "keywords";
     if (pathname.startsWith("/daily")) return "daily";
     return "daily";
@@ -60,14 +67,13 @@ export default function AppShell({ children }: AppShellProps) {
       >
         <Brand>
           <BrandMark />
-          {!collapsed && <BrandText>Nebula IQ</BrandText>}
+          {!collapsed && <BrandText>AI Analytics Workspace</BrandText>}
         </Brand>
 
-        <Menu
+        <SideMenu
           theme="dark"
           mode="inline"
           selectedKeys={selectedKey ? [selectedKey] : []}
-          style={{ color: "white" }}
           items={NAV_ITEMS.map((item) => ({
             key: item.key,
             icon: item.icon,
@@ -101,6 +107,47 @@ const Sider = styled(Layout.Sider)`
   top: 0;
   min-height: 100vh;
   height: 100%;
+`;
+
+const SideMenu = styled(Menu)`
+  background: transparent !important;
+
+  .ant-menu-item,
+  .ant-menu-submenu-title {
+    color: rgba(255, 255, 255, 0.92) !important;
+  }
+
+  .ant-menu-item .ant-menu-item-icon,
+  .ant-menu-submenu-title .ant-menu-item-icon,
+  .ant-menu-item .anticon,
+  .ant-menu-submenu-title .anticon {
+    color: rgba(255, 255, 255, 0.92) !important;
+  }
+
+  .ant-menu-item-disabled {
+    color: rgba(255, 255, 255, 0.45) !important;
+  }
+
+  .ant-menu-item-disabled .ant-menu-item-icon,
+  .ant-menu-item-disabled .anticon {
+    color: rgba(255, 255, 255, 0.45) !important;
+  }
+
+  .ant-menu-item:hover,
+  .ant-menu-submenu-title:hover {
+    color: rgba(255, 255, 255, 0.98) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .ant-menu-item-selected {
+    background: rgba(127, 107, 255, 0.22) !important;
+  }
+
+  .ant-menu-item-selected,
+  .ant-menu-item-selected .ant-menu-item-icon,
+  .ant-menu-item-selected .anticon {
+    color: rgba(255, 255, 255, 0.98) !important;
+  }
 `;
 
 const Brand = styled.div`

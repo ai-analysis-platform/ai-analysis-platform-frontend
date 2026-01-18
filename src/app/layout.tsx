@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Nebula IQ · AI Analytics Workspace",
+  title: "AI Analytics Workspace",
   description:
     "Next.js front-end for an AI data analytics platform with Ant Design, Emotion, TanStack Query, and Suspense-ready data flows.",
 };
