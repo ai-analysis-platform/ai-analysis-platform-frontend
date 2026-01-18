@@ -254,7 +254,5 @@ const ChatContainer = styled.section`
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  max-width: 1200px;
-  margin: 0 auto;
   width: 100%;
 `;

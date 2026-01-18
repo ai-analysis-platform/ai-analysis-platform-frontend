@@ -27,7 +27,7 @@ export default function Providers({ children }: ProvidersProps) {
               colorTextBase: "var(--foreground)",
               colorBorder: "#e5e7eb",
             },
-            algorithm: [antdTheme.defaultAlgorithm, antdTheme.compactAlgorithm],
+            algorithm: [antdTheme.defaultAlgorithm],
           }}
         >
           {children}

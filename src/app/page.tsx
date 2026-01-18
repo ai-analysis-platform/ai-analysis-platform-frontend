@@ -1,5 +1,5 @@
-import HomePage from "@/page/home-page";
+import CompanyAuthPage from "@/page/company-auth-page";
 
 export default function Home() {
-  return <HomePage />;
+  return <CompanyAuthPage />;
 }

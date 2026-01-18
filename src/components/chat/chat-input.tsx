@@ -87,8 +87,6 @@ const InputWrapper = styled.div`
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  max-width: 1200px;
-  margin: 0 auto;
 `;
 
 const InputActions = styled.div`
