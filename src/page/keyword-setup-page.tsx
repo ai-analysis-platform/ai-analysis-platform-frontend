@@ -1,40 +1,138 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { Badge, Button, Card, Divider, Input, Space, Steps, Tag, Typography } from "antd";
-import { PlusOutlined, SearchOutlined } from "@ant-design/icons";
-import { useMemo, useState } from "react";
+import { Button, Card, Input, Space, Steps, Tag, Typography } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
+import { useEffect, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { companyState, keywordSelectionState } from "@/core/state/onboarding";
+import KeywordAlertFrequency from "@/components/keyword/keyword-alert-frequency";
+import {
+  companyState,
+  keywordAlertCustomDaysState,
+  keywordAlertCustomTimeState,
+  keywordAlertFrequencyState,
+  keywordSelectionState,
+} from "@/core/state/onboarding";
 import AppShell from "@/components/layout/app-shell";
 
 const { Title, Text } = Typography;
 
-const INDUSTRIES = ["DRAM", "NAND", "Logic", "Foundry", "패키징", "AI 데이터센터"];
-const COMPETITORS = ["SK하이닉스", "마이크론", "TSMC", "퀄컴", "엔비디아", "AMD"];
+const INDUSTRY_POOL = [
+  "DRAM",
+  "NAND",
+  "Logic",
+  "Foundry",
+  "패키징",
+  "AI 데이터센터",
+  "HBM",
+  "DDR5",
+  "CXL",
+  "EUV",
+  "칩렛",
+  "EDA",
+  "파운드리 수율",
+  "고대역폭 인터커넥트",
+  "전력반도체",
+  "차량용 반도체",
+  "엣지 AI",
+];
+
+const COMPETITOR_POOL = [
+  "SK하이닉스",
+  "마이크론",
+  "TSMC",
+  "퀄컴",
+  "엔비디아",
+  "AMD",
+  "인텔",
+  "브로드컴",
+  "애플",
+  "구글",
+  "아마존",
+  "메타",
+  "삼성전자",
+  "ASML",
+  "ARM",
+  "텍사스인스트루먼트",
+];
+
+const MACRO_POOL = [
+  "정부 규제",
+  "지정학 리스크",
+  "환율",
+  "금리",
+  "원자재",
+  "공급망",
+  "관세",
+  "수출 규제",
+  "중국 리스크",
+  "인플레이션",
+  "리세션",
+  "에너지 가격",
+  "물류 비용",
+  "반독점",
+  "국가 보조금",
+  "환경 규제",
+];
+
+type KeywordCategoryKey = "industries" | "competitors" | "macros";
+
+const CATEGORY_LABEL: Record<KeywordCategoryKey, string> = {
+  industries: "산업군",
+  competitors: "경쟁사",
+  macros: "매크로 환경",
+};
+
+const CATEGORY_POOL: Record<KeywordCategoryKey, string[]> = {
+  industries: INDUSTRY_POOL,
+  competitors: COMPETITOR_POOL,
+  macros: MACRO_POOL,
+};
+
+const DEFAULT_VISIBLE = 10;
+const RECOMMEND_STEP = 5;
 
 export default function KeywordSetupPage() {
   const router = useRouter();
   const company = useAtomValue(companyState);
   const [selection, setSelection] = useAtom(keywordSelectionState);
-  const [search, setSearch] = useState("");
-  const [customInput, setCustomInput] = useState("");
+  const [alertFrequency, setAlertFrequency] = useAtom(keywordAlertFrequencyState);
+  const [alertCustomDays, setAlertCustomDays] = useAtom(keywordAlertCustomDaysState);
+  const [alertCustomTime, setAlertCustomTime] = useAtom(keywordAlertCustomTimeState);
+  const [visibleCount, setVisibleCount] = useState<Record<KeywordCategoryKey, number>>({
+    industries: DEFAULT_VISIBLE,
+    competitors: DEFAULT_VISIBLE,
+    macros: DEFAULT_VISIBLE,
+  });
+  const [customInput, setCustomInput] = useState<Record<KeywordCategoryKey, string>>({
+    industries: "",
+    competitors: "",
+    macros: "",
+  });
+  const [noMore, setNoMore] = useState<Record<KeywordCategoryKey, boolean>>({
+    industries: false,
+    competitors: false,
+    macros: false,
+  });
 
-  const filteredIndustries = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return INDUSTRIES;
-    return INDUSTRIES.filter((k) => k.toLowerCase().includes(q));
-  }, [search]);
+  useEffect(() => {
+    const isEmpty =
+      selection.industries.length === 0 &&
+      selection.competitors.length === 0 &&
+      selection.macros.length === 0;
+    if (!isEmpty) return;
 
-  const filteredCompetitors = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return COMPETITORS;
-    return COMPETITORS.filter((k) => k.toLowerCase().includes(q));
-  }, [search]);
+    setSelection((prev) => ({
+      ...prev,
+      industries: INDUSTRY_POOL.slice(0, DEFAULT_VISIBLE),
+      competitors: COMPETITOR_POOL.slice(0, DEFAULT_VISIBLE),
+      macros: MACRO_POOL.slice(0, DEFAULT_VISIBLE),
+    }));
+  }, [selection, setSelection]);
 
-  const toggle = (key: "industries" | "competitors", value: string) => {
+  const toggle = (key: KeywordCategoryKey, value: string) => {
     setSelection((prev) => {
       const exists = prev[key].includes(value);
       return {
@@ -44,23 +142,41 @@ export default function KeywordSetupPage() {
     });
   };
 
-  const addCustom = () => {
-    const trimmed = customInput.trim();
-    if (!trimmed) return;
+  const addCustom = (key: KeywordCategoryKey) => {
+    const raw = customInput[key];
+    const nextValues = raw
+      .split(/[,\n]/g)
+      .map((v) => v.trim())
+      .filter(Boolean);
+    if (nextValues.length === 0) return;
+
     setSelection((prev) => {
-      if (prev.custom.includes(trimmed)) return prev;
-      return { ...prev, custom: [...prev.custom, trimmed] };
+      const existing = new Set(prev[key]);
+      const merged = [...prev[key]];
+      for (const value of nextValues) {
+        if (existing.has(value)) continue;
+        merged.push(value);
+        existing.add(value);
+      }
+      return { ...prev, [key]: merged };
     });
-    setCustomInput("");
+    setCustomInput((prev) => ({ ...prev, [key]: "" }));
   };
 
-  const removeCustom = (value: string) => {
-    setSelection((prev) => ({ ...prev, custom: prev.custom.filter((k) => k !== value) }));
+  const removeCustom = (key: KeywordCategoryKey, value: string) => {
+    setSelection((prev) => ({ ...prev, [key]: prev[key].filter((k) => k !== value) }));
   };
 
   const canContinue =
-    selection.industries.length + selection.competitors.length + selection.custom.length >
+    selection.industries.length + selection.competitors.length + selection.macros.length >
     0;
+
+  const handleRecommendMore = (key: KeywordCategoryKey) => {
+    const pool = CATEGORY_POOL[key];
+    const next = Math.min(pool.length, visibleCount[key] + RECOMMEND_STEP);
+    setVisibleCount((prev) => ({ ...prev, [key]: next }));
+    setNoMore((prev) => ({ ...prev, [key]: next >= pool.length }));
+  };
 
   return (
     <AppShell>
@@ -98,90 +214,113 @@ export default function KeywordSetupPage() {
               </Banner>
             )}
 
-            {/* <Input
-              size="large"
-              placeholder="키워드 검색"
-              prefix={<SearchOutlined />}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            /> */}
-
             <Grid>
-              <Card
-                title={
-                  <TitleRow>
-                    <span>산업군</span>
-                    <Badge count={selection.industries.length} showZero />
-                  </TitleRow>
-                }
-                styles={{ body: { padding: 16 } }}
-              >
-                <TagGrid>
-                  {filteredIndustries.map((k) => {
-                    const selected = selection.industries.includes(k);
-                    return (
-                      <SelectTag
-                        key={k}
-                        color={selected ? "geekblue" : "default"}
-                        onClick={() => toggle("industries", k)}
-                      >
-                        {k}
-                      </SelectTag>
-                    );
-                  })}
-                </TagGrid>
-              </Card>
+              {(
+                [
+                  { key: "industries", pool: INDUSTRY_POOL },
+                  { key: "competitors", pool: COMPETITOR_POOL },
+                  { key: "macros", pool: MACRO_POOL },
+                ] as const
+              ).map(({ key, pool }) => {
+                const visible = pool.slice(0, visibleCount[key]);
+                const selected = selection[key];
+                const displayKeywords = [
+                  ...visible,
+                  ...selected.filter((v) => !visible.includes(v)),
+                ];
+                const isExhausted = visibleCount[key] >= pool.length;
 
-              <Card
-                title={
-                  <TitleRow>
-                    <span>경쟁사</span>
-                    <Badge count={selection.competitors.length} showZero />
-                  </TitleRow>
-                }
-                styles={{ body: { padding: 16 } }}
-              >
-                <TagGrid>
-                  {filteredCompetitors.map((k) => {
-                    const selected = selection.competitors.includes(k);
-                    return (
-                      <SelectTag
-                        key={k}
-                        color={selected ? "geekblue" : "default"}
-                        onClick={() => toggle("competitors", k)}
-                      >
-                        {k}
-                      </SelectTag>
-                    );
-                  })}
-                </TagGrid>
-              </Card>
+                return (
+                  <Card
+                    key={key}
+                    title={
+                      <TitleRow>
+                        <span>{CATEGORY_LABEL[key]}</span>
+                        <Button
+                          size="small"
+                          type="primary"
+                          ghost
+                          disabled={isExhausted}
+                          onClick={() => {
+                            if (isExhausted) {
+                              setNoMore((prev) => ({ ...prev, [key]: true }));
+                              return;
+                            }
+                            handleRecommendMore(key);
+                          }}
+                        >
+                          <span>더 추천 받기</span>
+                        </Button>
+                      </TitleRow>
+                    }
+                    styles={{ body: { padding: 16 } }}
+                  >
+                    <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                      <TagGrid>
+                        {displayKeywords.map((k) => {
+                          const isSelected = selected.includes(k);
+                          const isCustom = !pool.includes(k);
+                          if (isCustom) {
+                            return (
+                              <Tag
+                                key={`${key}-${k}`}
+                                closable
+                                onClose={() => removeCustom(key, k)}
+                                color="purple"
+                              >
+                                {k}
+                              </Tag>
+                            );
+                          }
+                          return (
+                            <SelectTag
+                              key={`${key}-${k}`}
+                              color={isSelected ? "geekblue" : "default"}
+                              onClick={() => toggle(key, k)}
+                            >
+                              {k}
+                            </SelectTag>
+                          );
+                        })}
+                      </TagGrid>
+
+                      {noMore[key] && isExhausted && (
+                        <Text type="secondary" style={{ fontSize: 13 }}>
+                          더 이상 추천할 키워드가 없습니다.
+                        </Text>
+                      )}
+
+                      <CustomRow>
+                        <Input
+                          size="large"
+                          value={customInput[key]}
+                          placeholder="추가 키워드 입력 (예: 정책, 공급망, 환율)"
+                          onChange={(e) =>
+                            setCustomInput((prev) => ({ ...prev, [key]: e.target.value }))
+                          }
+                          onPressEnter={() => addCustom(key)}
+                        />
+                        <Button
+                          size="large"
+                          icon={<PlusOutlined />}
+                          onClick={() => addCustom(key)}
+                        >
+                          추가
+                        </Button>
+                      </CustomRow>
+                    </Space>
+                  </Card>
+                );
+              })}
             </Grid>
-
-            <Divider style={{ margin: "4px 0" }} />
-
-            <CustomRow>
-              <Input
-                size="large"
-                value={customInput}
-                placeholder="추가 키워드 입력 (예: 정책, 공급망, 환율)"
-                onChange={(e) => setCustomInput(e.target.value)}
-                onPressEnter={addCustom}
-              />
-              <Button size="large" icon={<PlusOutlined />} onClick={addCustom}>
-                추가
-              </Button>
-            </CustomRow>
-
-            {selection.custom.length > 0 && (
-              <TagGrid>
-                {selection.custom.map((k) => (
-                  <Tag key={k} closable onClose={() => removeCustom(k)} color="purple">
-                    {k}
-                  </Tag>
-                ))}
-              </TagGrid>
-            )}
+            <KeywordAlertFrequency
+              value={alertFrequency}
+              customDays={alertCustomDays}
+              customTime={alertCustomTime}
+              onChange={setAlertFrequency}
+              onCustomDaysChange={setAlertCustomDays}
+              onCustomTimeChange={setAlertCustomTime}
+            />
 
             <FooterRow>
               <Button onClick={() => router.push("/" as Route)}>이전</Button>
@@ -190,7 +329,7 @@ export default function KeywordSetupPage() {
                 disabled={!canContinue || !company}
                 onClick={() => router.push("/daily" as Route)}
               >
-                데일리 뉴스 보기
+                NowWhat 시작
               </Button>
             </FooterRow>
           </Space>
@@ -233,10 +372,10 @@ const CardWrapper = styled(Card)`
 
 const Grid = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 14px;
 
-  @media (max-width: 860px) {
+  @media (max-width: 1020px) {
     grid-template-columns: 1fr;
   }
 `;

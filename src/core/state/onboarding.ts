@@ -9,16 +9,22 @@ export type Company = {
 export type KeywordSelection = {
   industries: string[];
   competitors: string[];
-  custom: string[];
+  macros: string[];
 };
+
+export type KeywordAlertFrequency = "daily" | "weekday" | "weekly" | "custom";
 
 export const companyState = atom<Company | null>(null);
 
 export const keywordSelectionState = atom<KeywordSelection>({
   industries: [],
   competitors: [],
-  custom: [],
+  macros: [],
 });
+
+export const keywordAlertFrequencyState = atom<KeywordAlertFrequency>("daily");
+export const keywordAlertCustomDaysState = atom<number>(3);
+export const keywordAlertCustomTimeState = atom<string>("09:00");
 
 export const selectedDailyDateState = atom<Date>(new Date());
 

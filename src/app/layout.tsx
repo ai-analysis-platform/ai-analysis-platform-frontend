@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Analytics Workspace",
+  title: "NowWhat",
   description:
     "Next.js front-end for an AI data analytics platform with Ant Design, Emotion, TanStack Query, and Suspense-ready data flows.",
 };

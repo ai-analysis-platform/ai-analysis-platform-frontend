@@ -21,12 +21,50 @@ import { mockDailyNews, type NewsItem } from "@/core/mock/daily-news";
 
 const { Title, Text, Link } = Typography;
 
+type StrategyItem = {
+  id: string;
+  category: "리스크" | "기회" | "변수";
+  title: string;
+  bullets: string[];
+};
+
+const mockStrategyChecks: StrategyItem[] = [
+  {
+    id: "strategy-1",
+    category: "리스크",
+    title: "대외 변수로 인한 반도체 수요 변동성 확대",
+    bullets: [
+      "환율/금리 변동 시 ASP 및 재고 조정 속도에 영향",
+      "수요 둔화 시 고부가 제품 믹스 방어 필요",
+    ],
+  },
+  {
+    id: "strategy-2",
+    category: "기회",
+    title: "AI 데이터센터 투자 확대로 HBM/고성능 메모리 수요 지속",
+    bullets: [
+      "GPU 플랫폼 확장에 따른 공급 우위 확보",
+      "고객사 락인 전략(장기 공급 계약) 검토",
+    ],
+  },
+  {
+    id: "strategy-3",
+    category: "변수",
+    title: "수출 규제/지정학 리스크의 공급망 리드타임 영향",
+    bullets: ["대체 소싱 및 재고 정책 재점검", "국가 보조금/규제 변화 모니터링"],
+  },
+];
+
 function toDayjs(date: Date) {
   return dayjs(date);
 }
 
 function fromDayjs(value: Dayjs) {
   return value.toDate();
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export default function DailyNewsPage() {
@@ -36,13 +74,43 @@ export default function DailyNewsPage() {
   const [selectedDate, setSelectedDate] = useAtom(selectedDailyDateState);
   const [order, setOrder] = useAtom(dailyNewsOrderState);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [strategyOrder, setStrategyOrder] = useState<string[]>([]);
+  const [draggingStrategyId, setDraggingStrategyId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const reportRef = useRef<HTMLDivElement | null>(null);
 
   const allSelected = useMemo(
-    () => [...selection.industries, ...selection.competitors, ...selection.custom],
+    () => [...selection.industries, ...selection.competitors, ...selection.macros],
     [selection],
   );
+
+  const highlightTerms = useMemo(() => {
+    const unique = Array.from(new Set(allSelected.map((t) => t.trim()).filter(Boolean)));
+    unique.sort((a, b) => b.length - a.length);
+    return unique.slice(0, 20);
+  }, [allSelected]);
+
+  const highlightRegex = useMemo(() => {
+    if (highlightTerms.length === 0) return null;
+    return new RegExp(`(${highlightTerms.map(escapeRegExp).join("|")})`, "gi");
+  }, [highlightTerms]);
+
+  const highlightSet = useMemo(
+    () => new Set(highlightTerms.map((t) => t.toLowerCase())),
+    [highlightTerms],
+  );
+
+  const renderHighlighted = (text: string) => {
+    if (!highlightRegex) return text;
+    const parts = text.split(highlightRegex);
+    return parts.map((part, idx) => {
+      const normalized = part.toLowerCase();
+      if (!highlightSet.has(normalized)) {
+        return <span key={`${idx}-${part}`}>{part}</span>;
+      }
+      return <Highlight key={`${idx}-${part}`}>{part}</Highlight>;
+    });
+  };
 
   const filteredNews = useMemo(() => {
     if (allSelected.length === 0) return mockDailyNews;
@@ -79,10 +147,35 @@ export default function DailyNewsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredNews.length]);
 
+  useEffect(() => {
+    setStrategyOrder((prev) => {
+      if (prev.length === 0) return mockStrategyChecks.map((s) => s.id);
+      const prevSet = new Set(prev);
+      const next = [...prev];
+      for (const item of mockStrategyChecks) {
+        if (!prevSet.has(item.id)) next.push(item.id);
+      }
+      return next;
+    });
+  }, []);
+
   const move = (sourceId: string, targetId: string) => {
     if (sourceId === targetId) return;
     setOrder((prev) => {
       const next = prev.length ? [...prev] : filteredNews.map((n) => n.id);
+      const from = next.indexOf(sourceId);
+      const to = next.indexOf(targetId);
+      if (from === -1 || to === -1) return prev;
+      next.splice(from, 1);
+      next.splice(to, 0, sourceId);
+      return next;
+    });
+  };
+
+  const moveStrategy = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    setStrategyOrder((prev) => {
+      const next = prev.length ? [...prev] : mockStrategyChecks.map((s) => s.id);
       const from = next.indexOf(sourceId);
       const to = next.indexOf(targetId);
       if (from === -1 || to === -1) return prev;
@@ -152,11 +245,10 @@ export default function DailyNewsPage() {
         <TopBar>
           <div>
             <Title level={3} style={{ margin: 0 }}>
-              {dayjs(selectedDate).format("YYYY. MM. DD")} Daily News
+              {dayjs(selectedDate).format("YYYY. MM. DD")} NowWhat Daily News &amp;{" "}
+              Strategy
             </Title>
-            <Text type="secondary">
-              {company.name} · 선택 키워드 {allSelected.length}개
-            </Text>
+            <Text type="secondary">{company.name}</Text>
           </div>
           <Actions>
             <DatePicker
@@ -177,38 +269,12 @@ export default function DailyNewsPage() {
 
         <Body>
           <Report ref={reportRef}>
-            <SectionCard>
+            <SectionHeader>
               <Title level={5} style={{ margin: 0 }}>
-                키워드
+                Daily News
               </Title>
-              <TagRow>
-                {allSelected.length === 0 ? (
-                  <Tag color="default">전체</Tag>
-                ) : (
-                  allSelected.map((k) => (
-                    <Tag key={k} color="geekblue">
-                      {k}
-                    </Tag>
-                  ))
-                )}
-              </TagRow>
-            </SectionCard>
-
-            <SectionCard>
-              <Title level={5} style={{ margin: 0 }}>
-                전략 점검 (목데이터)
-              </Title>
-              <Text type="secondary">
-                중요 뉴스의 “변수/리스크/기회”를 자동으로 구조화하는 LLM 분석 API는 추후
-                연동 예정입니다.
-              </Text>
-            </SectionCard>
-
-            <Divider style={{ margin: "12px 0" }} />
-
-            <Title level={5} style={{ margin: 0 }}>
-              뉴스 리스트 (드래그로 순서 조정)
-            </Title>
+              <Text type="secondary">드래그로 순서 조정</Text>
+            </SectionHeader>
             <List>
               {orderedNews.map((news) => (
                 <NewsCard
@@ -227,11 +293,11 @@ export default function DailyNewsPage() {
                   </Handle>
                   <NewsBody>
                     <Title level={5} style={{ margin: 0 }}>
-                      {news.title}
+                      {renderHighlighted(news.title)}
                     </Title>
                     <BulletList>
                       {news.bullets.map((b, idx) => (
-                        <li key={`${news.id}-${idx}`}>{b}</li>
+                        <li key={`${news.id}-${idx}`}>{renderHighlighted(b)}</li>
                       ))}
                     </BulletList>
                     <Space size={8} wrap>
@@ -245,6 +311,51 @@ export default function DailyNewsPage() {
                   </NewsBody>
                 </NewsCard>
               ))}
+            </List>
+
+            <Divider style={{ margin: "14px 0" }} />
+
+            <SectionHeader>
+              <Title level={5} style={{ margin: 0 }}>
+                Strategy Check
+              </Title>
+              <Text type="secondary">드래그로 순서 조정</Text>
+            </SectionHeader>
+
+            <List>
+              {strategyOrder
+                .map((id) => mockStrategyChecks.find((s) => s.id === id))
+                .filter((item): item is StrategyItem => Boolean(item))
+                .map((item) => (
+                  <StrategyCard
+                    key={item.id}
+                    draggable
+                    onDragStart={() => setDraggingStrategyId(item.id)}
+                    onDragEnd={() => setDraggingStrategyId(null)}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (!draggingStrategyId || draggingStrategyId === item.id) return;
+                      moveStrategy(draggingStrategyId, item.id);
+                    }}
+                  >
+                    <Handle aria-hidden>
+                      <HolderOutlined />
+                    </Handle>
+                    <NewsBody>
+                      <Space size={8} wrap>
+                        <Tag color="default">{item.category}</Tag>
+                      </Space>
+                      <Title level={5} style={{ margin: 0 }}>
+                        {renderHighlighted(item.title)}
+                      </Title>
+                      <BulletList>
+                        {item.bullets.map((b, idx) => (
+                          <li key={`${item.id}-${idx}`}>{renderHighlighted(b)}</li>
+                        ))}
+                      </BulletList>
+                    </NewsBody>
+                  </StrategyCard>
+                ))}
             </List>
           </Report>
 
@@ -317,20 +428,11 @@ const Report = styled.div`
   padding: 16px;
 `;
 
-const SectionCard = styled.div`
-  border: 1px solid var(--card-border);
-  border-radius: 14px;
-  padding: 14px;
-  background: rgba(127, 107, 255, 0.04);
+const SectionHeader = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const TagRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 `;
 
 const List = styled.div`
@@ -357,6 +459,8 @@ const NewsCard = styled.div`
   }
 `;
 
+const StrategyCard = styled(NewsCard)``;
+
 const Handle = styled.div`
   color: rgba(17, 24, 39, 0.45);
   display: grid;
@@ -378,6 +482,11 @@ const BulletList = styled.ul`
   li {
     margin: 4px 0;
   }
+`;
+
+const Highlight = styled.span`
+  color: #2563eb;
+  font-weight: 600;
 `;
 
 const Side = styled.aside`
