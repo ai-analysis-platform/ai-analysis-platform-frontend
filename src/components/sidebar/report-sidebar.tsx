@@ -3,9 +3,10 @@
 import styled from "@emotion/styled";
 import { Button } from "antd";
 import { FileTextOutlined, ArrowLeftOutlined } from "@ant-design/icons";
-import { useRouter } from "next/navigation";
 import { useAtomValue } from "jotai";
 import { reportsState, type Report } from "@/core/state/report";
+import { useSafeBack } from "@/hooks/use-safe-back";
+import { useRouter } from "next/navigation";
 
 type ReportSidebarProps = {
   currentReportId?: string;
@@ -17,10 +18,11 @@ export default function ReportSidebar({
   onReportSelect,
 }: ReportSidebarProps) {
   const router = useRouter();
+  const goBack = useSafeBack("/" as const);
   const reports = useAtomValue(reportsState);
 
   const handleBackToChat = () => {
-    router.push("/");
+    goBack();
   };
 
   const handleReportClick = (report: Report) => {
@@ -73,6 +75,12 @@ const SidebarContainer = styled.aside`
   display: flex;
   flex-direction: column;
   height: 100vh;
+
+  @media (max-width: 1100px) {
+    width: 100%;
+    height: auto;
+    max-height: 280px;
+  }
 `;
 
 const SidebarHeader = styled.div`

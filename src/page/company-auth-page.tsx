@@ -141,7 +141,6 @@ export default function CompanyAuthPage() {
                   회사 검색 API 호출 실패: {companyQuery.error.message}
                 </Text>
               )}
-
               <Divider style={{ margin: "16px 0" }} />
               <Space direction="vertical" size={6} style={{ width: "100%" }}>
                 <Text type="secondary">예시 회사 목록</Text>
@@ -169,6 +168,10 @@ const Shell = styled.div`
   padding: 48px 16px;
   position: relative;
   overflow: hidden;
+
+  @media (max-width: 640px) {
+    padding: 0;
+  }
 `;
 
 const Backdrop = styled.div`

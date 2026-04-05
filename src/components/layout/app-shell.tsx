@@ -1,13 +1,13 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { Layout, Menu } from "antd";
+import { Button, Drawer, Layout, Menu } from "antd";
 import {
+  CloseOutlined,
   CalendarOutlined,
-  HomeOutlined,
   KeyOutlined,
+  MenuOutlined,
   SettingOutlined,
-  UserOutlined,
 } from "@ant-design/icons";
 import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -37,14 +37,13 @@ const NAV_ITEMS: Array<{
     href: "/setup/keywords",
   },
   { key: "daily", label: "데일리 뉴스", icon: <CalendarOutlined />, href: "/daily" },
-  { key: "history", label: "내가 본 뉴스", icon: <HomeOutlined />, disabled: true },
-  { key: "me", label: "내 정보", icon: <UserOutlined />, disabled: true },
 ];
 
 export default function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const selectedKey = useMemo(() => {
     if (!pathname) return "daily";
@@ -56,7 +55,7 @@ export default function AppShell({ children }: AppShellProps) {
 
   return (
     <RootLayout>
-      <Sider
+      <DesktopSider
         width={260}
         theme="dark"
         collapsible
@@ -67,7 +66,7 @@ export default function AppShell({ children }: AppShellProps) {
       >
         <Brand>
           <BrandMark />
-          {!collapsed && <BrandText>AI Analytics Workspace</BrandText>}
+          {!collapsed && <BrandText>NowWhat</BrandText>}
         </Brand>
 
         <SideMenu
@@ -81,15 +80,64 @@ export default function AppShell({ children }: AppShellProps) {
             disabled: item.disabled,
             onClick: () => {
               if (!item.href) return;
+              setMobileMenuOpen(false);
               router.push(item.href as Route);
             },
           }))}
         />
-      </Sider>
+      </DesktopSider>
 
       <MainLayout>
+        <MobileHeader>
+          <MobileMenuButton
+            type="text"
+            icon={<MenuOutlined />}
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="메뉴 열기"
+          />
+          <MobileHeaderTitle>NowWhat</MobileHeaderTitle>
+        </MobileHeader>
         <MainContent>{children}</MainContent>
       </MainLayout>
+
+      <MobileDrawer
+        placement="left"
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        closable={false}
+        width={280}
+        styles={{ body: { padding: 0 } }}
+      >
+        <DrawerShell>
+          <DrawerHeader>
+            <Brand>
+              <BrandMark />
+              <BrandText>NowWhat</BrandText>
+            </Brand>
+            <CloseButton
+              type="text"
+              icon={<CloseOutlined />}
+              onClick={() => setMobileMenuOpen(false)}
+              aria-label="메뉴 닫기"
+            />
+          </DrawerHeader>
+          <SideMenu
+            theme="dark"
+            mode="inline"
+            selectedKeys={selectedKey ? [selectedKey] : []}
+            items={NAV_ITEMS.map((item) => ({
+              key: item.key,
+              icon: item.icon,
+              label: item.label,
+              onClick: () => {
+                if (!item.href) return;
+                setMobileMenuOpen(false);
+                router.push(item.href as Route);
+              },
+            }))}
+          />
+        </DrawerShell>
+      </MobileDrawer>
     </RootLayout>
   );
 }
@@ -100,13 +148,17 @@ const RootLayout = styled(Layout)`
   background: #0b1020;
 `;
 
-const Sider = styled(Layout.Sider)`
+const DesktopSider = styled(Layout.Sider)`
   background: linear-gradient(180deg, #111827, #0b1020) !important;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   position: sticky;
   top: 0;
   min-height: 100vh;
   height: 100%;
+
+  @media (max-width: 991px) {
+    display: none !important;
+  }
 `;
 
 const SideMenu = styled(Menu)`
@@ -179,11 +231,65 @@ const MainLayout = styled(Layout)`
   background: linear-gradient(180deg, #ffffff, #fafafa);
 `;
 
+const MobileHeader = styled.header`
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid rgba(17, 24, 39, 0.08);
+  backdrop-filter: blur(10px);
+
+  @media (max-width: 991px) {
+    display: flex;
+  }
+`;
+
+const MobileMenuButton = styled(Button)`
+  width: 40px;
+  height: 40px;
+  color: #111827 !important;
+`;
+
+const MobileHeaderTitle = styled.div`
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+`;
+
 const MainContent = styled(Layout.Content)`
   overflow: auto;
-  padding: 22px 16px 48px;
+  padding: 0 !important;
   font-size: 16px;
   --ant-font-size: 16px;
   --ant-font-size-sm: 14px;
   --ant-font-size-lg: 18px;
+`;
+
+const MobileDrawer = styled(Drawer)`
+  .ant-drawer-content,
+  .ant-drawer-body {
+    background: linear-gradient(180deg, #111827, #0b1020);
+  }
+`;
+
+const DrawerShell = styled.div`
+  min-height: 100%;
+  background: linear-gradient(180deg, #111827, #0b1020);
+`;
+
+const DrawerHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+`;
+
+const CloseButton = styled(Button)`
+  margin-right: 8px;
+  color: rgba(255, 255, 255, 0.92) !important;
 `;

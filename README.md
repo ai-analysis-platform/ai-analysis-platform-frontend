@@ -1,4 +1,4 @@
-## Nebula IQ · AI Analytics Workspace
+## Nebula IQ · Nowwhat
 
 TypeScript-based Next.js 16 application that demonstrates a clean homepage scaffold for an AI data analytics platform. The stack blends Ant Design, Emotion, TanStack Query, Recoil, and a companion Vite playground so future product modules can iterate quickly while reusing the same providers.
 

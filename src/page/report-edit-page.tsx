@@ -1,6 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
+import { Segmented } from "antd";
 import { useParams } from "next/navigation";
 import { useAtom, useAtomValue } from "jotai";
 import { currentReportState, reportsState, type Report } from "@/core/state/report";
@@ -9,7 +10,7 @@ import ReportEditor from "@/components/report/report-editor";
 import MessageList from "@/components/chat/message-list";
 import ChatInput from "@/components/chat/chat-input";
 import ReportSidebar from "@/components/sidebar/report-sidebar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { parseReportUpdateRequest, applyReportUpdate } from "@/utils/report-update";
 
 export default function ReportEditPage() {
@@ -17,8 +18,9 @@ export default function ReportEditPage() {
   const reportId = params.id as string;
   const [report, setReport] = useAtom(currentReportState);
   const reports = useAtomValue(reportsState);
-  const [messages, setMessages] = useAtom(chatMessagesState);
+  const [, setMessages] = useAtom(chatMessagesState);
   const [inputValue, setInputValue] = useAtom(currentInputState);
+  const [mobilePanel, setMobilePanel] = useState<"report" | "chat">("report");
 
   useEffect(() => {
     // 리포트 로드 (나중에 API로 교체)
@@ -211,10 +213,18 @@ export default function ReportEditPage() {
   return (
     <EditPageLayout>
       <ReportSidebar currentReportId={reportId} onReportSelect={handleReportSelect} />
-      <MainEditor>
+      <MobilePanelSwitch
+        value={mobilePanel}
+        onChange={(value) => setMobilePanel(value as "report" | "chat")}
+        options={[
+          { label: "리포트", value: "report" },
+          { label: "채팅", value: "chat" },
+        ]}
+      />
+      <MainEditor $visible={mobilePanel === "report"}>
         <ReportEditor report={report} onUpdate={handleReportUpdate} />
       </MainEditor>
-      <ChatSidebar>
+      <ChatSidebar $visible={mobilePanel === "chat"}>
         <ChatHeader>
           <h3>리포트 수정 도우미</h3>
         </ChatHeader>
@@ -233,21 +243,51 @@ const EditPageLayout = styled.div`
   width: 100%;
   background: #f9fafb;
   overflow: hidden;
+
+  @media (max-width: 1100px) {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
 `;
 
-const MainEditor = styled.main`
+const MobilePanelSwitch = styled(Segmented)`
+  display: none;
+  margin: 12px 12px 0;
+
+  @media (max-width: 1100px) {
+    display: inline-flex;
+  }
+`;
+
+const MainEditor = styled.main<{ $visible: boolean }>`
   flex: 1;
   overflow-y: auto;
   padding: 24px;
   background: #ffffff;
+
+  @media (max-width: 1100px) {
+    display: ${({ $visible }) => ($visible ? "block" : "none")};
+    min-height: 0;
+    padding: 16px 12px 24px;
+  }
 `;
 
-const ChatSidebar = styled.aside`
+const ChatSidebar = styled.aside<{ $visible: boolean }>`
   width: 400px;
   display: flex;
   flex-direction: column;
   border-left: 1px solid #e5e7eb;
   background: #ffffff;
+
+  @media (max-width: 1100px) {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #e5e7eb;
+    min-height: 60vh;
+    display: ${({ $visible }) => ($visible ? "flex" : "none")};
+  }
 `;
 
 const ChatHeader = styled.div`

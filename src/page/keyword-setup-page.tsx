@@ -19,6 +19,8 @@ import {
   keywordSelectionState,
 } from "@/core/state/onboarding";
 import AppShell from "@/components/layout/app-shell";
+import { LoadingOverlay, LoadingState } from "@/components/common/loading-state";
+import { useSafeBack } from "@/hooks/use-safe-back";
 
 const { Title, Text } = Typography;
 
@@ -98,6 +100,7 @@ const DEFAULT_VISIBLE = 10;
 const RECOMMEND_STEP = 5;
 export default function KeywordSetupPage() {
   const router = useRouter();
+  const goBack = useSafeBack("/" as Route);
   const company = useAtomValue(companyState);
   const [selection, setSelection] = useAtom(keywordSelectionState);
   const [alertFrequency, setAlertFrequency] = useAtom(keywordAlertFrequencyState);
@@ -258,6 +261,13 @@ export default function KeywordSetupPage() {
         </TopBar>
 
         <CardWrapper>
+          <CardBodyOverlay>
+            <LoadingOverlay
+              visible={Boolean(company && keywordQuery.isLoading && !keywordQuery.data)}
+              title="추천 키워드를 불러오는 중입니다"
+              description="회사 기준으로 산업군, 경쟁사, 매크로 키워드를 정리하고 있습니다."
+            />
+          </CardBodyOverlay>
           <Space direction="vertical" size={16} style={{ width: "100%" }}>
             {!company && (
               <Banner>
@@ -270,7 +280,11 @@ export default function KeywordSetupPage() {
               </Banner>
             )}
             {company && keywordQuery.isLoading && (
-              <Text type="secondary">추천 키워드를 불러오는 중입니다...</Text>
+              <LoadingState
+                compact
+                title="추천 키워드 데이터를 수신 중입니다"
+                description="추천 목록이 도착하면 바로 선택할 수 있습니다."
+              />
             )}
             {company && keywordQuery.error && (
               <Text type="danger">
@@ -387,7 +401,7 @@ export default function KeywordSetupPage() {
             />
 
             <FooterRow>
-              <Button onClick={() => router.push("/" as Route)}>이전</Button>
+              <Button onClick={goBack}>이전</Button>
               <Button
                 type="primary"
                 disabled={!canContinue || !company}
@@ -427,11 +441,20 @@ const TopBar = styled.div`
 `;
 
 const CardWrapper = styled(Card)`
+  position: relative;
   border-radius: 16px;
   border: 1px solid var(--card-border);
   box-shadow:
     0 12px 40px rgba(17, 24, 39, 0.06),
     0 2px 8px rgba(17, 24, 39, 0.06);
+`;
+
+const CardBodyOverlay = styled.div`
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 16px;
+  overflow: hidden;
 `;
 
 const Grid = styled.div`
@@ -449,6 +472,7 @@ const TitleRow = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: nowrap;
 `;
 
 const TagGrid = styled.div`
@@ -482,6 +506,14 @@ const FooterRow = styled.div`
   display: flex;
   justify-content: space-between;
   gap: 12px;
+
+  @media (max-width: 640px) {
+    flex-direction: column-reverse;
+
+    > button {
+      width: 100%;
+    }
+  }
 `;
 
 const Banner = styled.div`
