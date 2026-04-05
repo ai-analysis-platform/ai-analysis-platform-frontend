@@ -16,6 +16,7 @@ import {
   keywordAlertCustomDaysState,
   keywordAlertCustomTimeState,
   keywordAlertFrequencyState,
+  keywordRecommendationsState,
   keywordSelectionState,
 } from "@/core/state/onboarding";
 import AppShell from "@/components/layout/app-shell";
@@ -98,11 +99,27 @@ const CATEGORY_POOL: Record<KeywordCategoryKey, string[]> = {
 
 const DEFAULT_VISIBLE = 10;
 const RECOMMEND_STEP = 5;
+
+function withFallbackKeywords(selection: Record<KeywordCategoryKey, string[]>) {
+  return {
+    industries:
+      selection.industries.length > 0 ? selection.industries : CATEGORY_POOL.industries,
+    competitors:
+      selection.competitors.length > 0
+        ? selection.competitors
+        : CATEGORY_POOL.competitors,
+    macros: selection.macros.length > 0 ? selection.macros : CATEGORY_POOL.macros,
+  };
+}
+
 export default function KeywordSetupPage() {
   const router = useRouter();
   const goBack = useSafeBack("/" as Route);
   const company = useAtomValue(companyState);
   const [selection, setSelection] = useAtom(keywordSelectionState);
+  const [keywordRecommendations, setKeywordRecommendations] = useAtom(
+    keywordRecommendationsState,
+  );
   const [alertFrequency, setAlertFrequency] = useAtom(keywordAlertFrequencyState);
   const [alertCustomDays, setAlertCustomDays] = useAtom(keywordAlertCustomDaysState);
   const [alertCustomTime, setAlertCustomTime] = useAtom(keywordAlertCustomTimeState);
@@ -121,37 +138,56 @@ export default function KeywordSetupPage() {
     competitors: false,
     macros: false,
   });
+  const companyName = company?.name.trim() ?? "";
+  const cachedKeywords = companyName ? keywordRecommendations[companyName] : undefined;
 
   const keywordQuery = useQuery({
-    queryKey: ["news-keywords", company?.name],
+    queryKey: ["news-keywords", companyName],
     queryFn: () => {
       const sessionId = getOrCreateNewsKeywordSessionId();
       return fetchNewsKeywords({
-        query: (company?.name ?? "").trim(),
+        query: companyName,
         days_back: 7,
         max_articles: 10,
         language: "ko",
         session_id: sessionId,
       });
     },
-    enabled: Boolean(company?.name),
+    enabled: Boolean(companyName) && !cachedKeywords,
+    staleTime: Infinity,
   });
 
   useEffect(() => {
-    if (!keywordQuery.data) return;
+    if (!companyName || !keywordQuery.data) return;
 
-    const normalized = normalizeKeywordSelection(keywordQuery.data);
-    const nextPool: Record<KeywordCategoryKey, string[]> = {
-      industries:
-        normalized.industries.length > 0
-          ? normalized.industries
-          : CATEGORY_POOL.industries,
-      competitors:
-        normalized.competitors.length > 0
-          ? normalized.competitors
-          : CATEGORY_POOL.competitors,
-      macros: normalized.macros.length > 0 ? normalized.macros : CATEGORY_POOL.macros,
-    };
+    const nextPool = withFallbackKeywords(normalizeKeywordSelection(keywordQuery.data));
+
+    setKeywordRecommendations((prev) => {
+      const prevPool = prev[companyName];
+      if (
+        prevPool &&
+        prevPool.industries.join("|") === nextPool.industries.join("|") &&
+        prevPool.competitors.join("|") === nextPool.competitors.join("|") &&
+        prevPool.macros.join("|") === nextPool.macros.join("|")
+      ) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [companyName]: nextPool,
+      };
+    });
+  }, [companyName, keywordQuery.data, setKeywordRecommendations]);
+
+  const recommendedKeywords = cachedKeywords
+    ? cachedKeywords
+    : keywordQuery.data
+      ? withFallbackKeywords(normalizeKeywordSelection(keywordQuery.data))
+      : null;
+
+  useEffect(() => {
+    if (!recommendedKeywords) return;
 
     setSelection((prev) => {
       const isSelectionEmpty =
@@ -161,33 +197,30 @@ export default function KeywordSetupPage() {
       if (!isSelectionEmpty) return prev;
       return {
         ...prev,
-        industries: nextPool.industries.slice(0, DEFAULT_VISIBLE),
-        competitors: nextPool.competitors.slice(0, DEFAULT_VISIBLE),
-        macros: nextPool.macros.slice(0, DEFAULT_VISIBLE),
+        industries: recommendedKeywords.industries.slice(0, DEFAULT_VISIBLE),
+        competitors: recommendedKeywords.competitors.slice(0, DEFAULT_VISIBLE),
+        macros: recommendedKeywords.macros.slice(0, DEFAULT_VISIBLE),
       };
     });
-  }, [keywordQuery.data, setSelection]);
+  }, [recommendedKeywords, setSelection]);
 
-  const normalizedKeywords = keywordQuery.data
-    ? normalizeKeywordSelection(keywordQuery.data)
-    : null;
   const shouldHideDefaultsWhileLoading =
-    Boolean(company) && keywordQuery.isLoading && !keywordQuery.data;
+    Boolean(company) && keywordQuery.isLoading && !recommendedKeywords;
   const categoryPool: Record<KeywordCategoryKey, string[]> = {
     industries: shouldHideDefaultsWhileLoading
       ? []
-      : normalizedKeywords?.industries.length
-        ? normalizedKeywords.industries
+      : recommendedKeywords?.industries.length
+        ? recommendedKeywords.industries
         : CATEGORY_POOL.industries,
     competitors: shouldHideDefaultsWhileLoading
       ? []
-      : normalizedKeywords?.competitors.length
-        ? normalizedKeywords.competitors
+      : recommendedKeywords?.competitors.length
+        ? recommendedKeywords.competitors
         : CATEGORY_POOL.competitors,
     macros: shouldHideDefaultsWhileLoading
       ? []
-      : normalizedKeywords?.macros.length
-        ? normalizedKeywords.macros
+      : recommendedKeywords?.macros.length
+        ? recommendedKeywords.macros
         : CATEGORY_POOL.macros,
   };
 
@@ -263,7 +296,7 @@ export default function KeywordSetupPage() {
         <CardWrapper>
           <CardBodyOverlay>
             <LoadingOverlay
-              visible={Boolean(company && keywordQuery.isLoading && !keywordQuery.data)}
+              visible={Boolean(company && keywordQuery.isLoading && !recommendedKeywords)}
               title="추천 키워드를 불러오는 중입니다"
               description="회사 기준으로 산업군, 경쟁사, 매크로 키워드를 정리하고 있습니다."
             />
@@ -279,7 +312,7 @@ export default function KeywordSetupPage() {
                 </Text>
               </Banner>
             )}
-            {company && keywordQuery.isLoading && (
+            {company && keywordQuery.isLoading && !recommendedKeywords && (
               <LoadingState
                 compact
                 title="추천 키워드 데이터를 수신 중입니다"

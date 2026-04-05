@@ -13,6 +13,7 @@ import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/layout/app-shell";
 import { LoadingOverlay, LoadingState } from "@/components/common/loading-state";
+import MarkdownContent from "@/components/common/markdown-content";
 import {
   buildNewsResumeRequest,
   fetchNewsResume,
@@ -29,40 +30,6 @@ import { mockDailyNews, type NewsItem } from "@/core/mock/daily-news";
 import { useSafeBack } from "@/hooks/use-safe-back";
 
 const { Title, Text, Link } = Typography;
-
-type StrategyItem = {
-  id: string;
-  category: "리스크" | "기회" | "변수";
-  title: string;
-  bullets: string[];
-};
-
-const mockStrategyChecks: StrategyItem[] = [
-  {
-    id: "strategy-1",
-    category: "리스크",
-    title: "대외 변수로 인한 반도체 수요 변동성 확대",
-    bullets: [
-      "환율/금리 변동 시 ASP 및 재고 조정 속도에 영향",
-      "수요 둔화 시 고부가 제품 믹스 방어 필요",
-    ],
-  },
-  {
-    id: "strategy-2",
-    category: "기회",
-    title: "AI 데이터센터 투자 확대로 HBM/고성능 메모리 수요 지속",
-    bullets: [
-      "GPU 플랫폼 확장에 따른 공급 우위 확보",
-      "고객사 락인 전략(장기 공급 계약) 검토",
-    ],
-  },
-  {
-    id: "strategy-3",
-    category: "변수",
-    title: "수출 규제/지정학 리스크의 공급망 리드타임 영향",
-    bullets: ["대체 소싱 및 재고 정책 재점검", "국가 보조금/규제 변화 모니터링"],
-  },
-];
 
 function toDayjs(date: Date) {
   return dayjs(date);
@@ -95,6 +62,7 @@ const NEWS_COLUMN_META: Record<
 };
 
 export default function DailyNewsPage() {
+  const DEFAULT_VISIBLE_COUNT = 3;
   const router = useRouter();
   const goBackToKeywords = useSafeBack("/setup/keywords" as Route);
   const company = useAtomValue(companyState);
@@ -102,10 +70,12 @@ export default function DailyNewsPage() {
   const [selectedDate, setSelectedDate] = useAtom(selectedDailyDateState);
   const [order, setOrder] = useAtom(dailyNewsOrderState);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [strategyOrder, setStrategyOrder] = useState<string[]>([]);
-  const [draggingStrategyId, setDraggingStrategyId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [expandedColumns, setExpandedColumns] = useState<Record<NewsColumnKey, boolean>>({
+    kor: false,
+    eng: false,
+  });
   const reportRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -188,6 +158,11 @@ export default function DailyNewsPage() {
     return { KOR: [] as NewsItem[], ENG: [] as NewsItem[] };
   }, [apiNews, fallbackNews, newsQuery.error, newsQuery.isLoading]);
 
+  const strategyMarkdown = useMemo(
+    () => newsQuery.data?.result?.strategy_markdown?.trim() ?? "",
+    [newsQuery.data],
+  );
+
   const orderedNews = useMemo(() => {
     const sortByOrder = (items: NewsItem[], ids: string[]) => {
       if (ids.length === 0) return items;
@@ -229,18 +204,6 @@ export default function DailyNewsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleNews.KOR.length, visibleNews.ENG.length]);
 
-  useEffect(() => {
-    setStrategyOrder((prev) => {
-      if (prev.length === 0) return mockStrategyChecks.map((s) => s.id);
-      const prevSet = new Set(prev);
-      const next = [...prev];
-      for (const item of mockStrategyChecks) {
-        if (!prevSet.has(item.id)) next.push(item.id);
-      }
-      return next;
-    });
-  }, []);
-
   const move = (sourceId: string, targetId: string, column: NewsColumnKey) => {
     if (sourceId === targetId) return;
     setOrder((prev) => {
@@ -255,19 +218,6 @@ export default function DailyNewsPage() {
         ...prev,
         [column]: next,
       };
-    });
-  };
-
-  const moveStrategy = (sourceId: string, targetId: string) => {
-    if (sourceId === targetId) return;
-    setStrategyOrder((prev) => {
-      const next = prev.length ? [...prev] : mockStrategyChecks.map((s) => s.id);
-      const from = next.indexOf(sourceId);
-      const to = next.indexOf(targetId);
-      if (from === -1 || to === -1) return prev;
-      next.splice(from, 1);
-      next.splice(to, 0, sourceId);
-      return next;
     });
   };
 
@@ -398,6 +348,10 @@ export default function DailyNewsPage() {
                   >
                 ).map(([column, meta]) => {
                   const items = column === "kor" ? orderedNews.KOR : orderedNews.ENG;
+                  const isExpanded = expandedColumns[column];
+                  const hasMoreItems = items.length > DEFAULT_VISIBLE_COUNT;
+                  const visibleItems =
+                    hasMoreItems && !isExpanded ? items.slice(0, DEFAULT_VISIBLE_COUNT) : items;
 
                   return (
                     <NewsColumn key={column}>
@@ -417,7 +371,7 @@ export default function DailyNewsPage() {
                             </Text>
                           </Card>
                         )}
-                        {items.map((news) => (
+                        {visibleItems.map((news) => (
                           <NewsCard
                             key={news.id}
                             draggable
@@ -459,6 +413,23 @@ export default function DailyNewsPage() {
                             </NewsBody>
                           </NewsCard>
                         ))}
+                        {hasMoreItems && (
+                          <ExpandButtonWrap>
+                            <Button
+                              type="default"
+                              onClick={() =>
+                                setExpandedColumns((prev) => ({
+                                  ...prev,
+                                  [column]: !prev[column],
+                                }))
+                              }
+                            >
+                              {isExpanded
+                                ? "접기"
+                                : `더보기 (${items.length - DEFAULT_VISIBLE_COUNT}개)`}
+                            </Button>
+                          </ExpandButtonWrap>
+                        )}
                       </List>
                     </NewsColumn>
                   );
@@ -471,44 +442,20 @@ export default function DailyNewsPage() {
                 <Title level={5} style={{ margin: 0 }}>
                   Strategy Check
                 </Title>
-                <Text type="secondary">드래그로 순서 조정</Text>
+                <Text type="secondary">Resume API 전략 요약</Text>
               </SectionHeader>
 
-              <List>
-                {strategyOrder
-                  .map((id) => mockStrategyChecks.find((s) => s.id === id))
-                  .filter((item): item is StrategyItem => Boolean(item))
-                  .map((item) => (
-                    <StrategyCard
-                      key={item.id}
-                      draggable
-                      onDragStart={() => setDraggingStrategyId(item.id)}
-                      onDragEnd={() => setDraggingStrategyId(null)}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        if (!draggingStrategyId || draggingStrategyId === item.id) return;
-                        moveStrategy(draggingStrategyId, item.id);
-                      }}
-                    >
-                      <Handle aria-hidden>
-                        <HolderOutlined />
-                      </Handle>
-                      <NewsBody>
-                        <Space size={8} wrap>
-                          <Tag color="default">{item.category}</Tag>
-                        </Space>
-                        <Title level={5} style={{ margin: 0 }}>
-                          {renderHighlighted(item.title)}
-                        </Title>
-                        <BulletList>
-                          {item.bullets.map((b, idx) => (
-                            <li key={`${item.id}-${idx}`}>{renderHighlighted(b)}</li>
-                          ))}
-                        </BulletList>
-                      </NewsBody>
-                    </StrategyCard>
-                  ))}
-              </List>
+              <StrategyPanel>
+                {strategyMarkdown ? (
+                  <MarkdownContent content={strategyMarkdown} />
+                ) : (
+                  <Text type="secondary">
+                    {newsQuery.isLoading
+                      ? "전략 요약을 불러오는 중입니다."
+                      : "전략 요약 데이터가 아직 없습니다."}
+                  </Text>
+                )}
+              </StrategyPanel>
             </Report>
           </ReportWrap>
 
@@ -623,6 +570,12 @@ const ColumnHeader = styled.div`
   gap: 12px;
 `;
 
+const ExpandButtonWrap = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
+`;
+
 const NewsCard = styled.div`
   display: grid;
   grid-template-columns: 28px 1fr;
@@ -644,8 +597,6 @@ const NewsCard = styled.div`
     padding: 14px;
   }
 `;
-
-const StrategyCard = styled(NewsCard)``;
 
 const Handle = styled.div`
   color: rgba(17, 24, 39, 0.45);
@@ -673,6 +624,14 @@ const BulletList = styled.ul`
 const Highlight = styled.span`
   color: #2563eb;
   font-weight: 600;
+`;
+
+const StrategyPanel = styled.div`
+  margin-top: 10px;
+  padding: 18px;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff, #fcfcfd);
 `;
 
 const Side = styled.aside`

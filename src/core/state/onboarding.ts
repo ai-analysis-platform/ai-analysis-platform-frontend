@@ -22,6 +22,8 @@ export const keywordSelectionState = atom<KeywordSelection>({
   macros: [],
 });
 
+export const keywordRecommendationsState = atom<Record<string, KeywordSelection>>({});
+
 export const keywordAlertFrequencyState = atom<KeywordAlertFrequency>("daily");
 export const keywordAlertCustomDaysState = atom<number>(3);
 export const keywordAlertCustomTimeState = atom<string>("09:00");

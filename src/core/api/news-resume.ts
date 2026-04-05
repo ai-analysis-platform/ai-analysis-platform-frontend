@@ -38,6 +38,7 @@ export type NewsResumeResponse = {
     routing_decision?: string | null;
     news_count?: number;
     news_data?: NewsResumeArticle[] | NewsResumeGroupedArticles;
+    strategy_markdown?: string;
     final_response?: string;
   };
   keywords?: unknown;

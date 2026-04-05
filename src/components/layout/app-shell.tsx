@@ -44,6 +44,7 @@ export default function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isCompanyPage = pathname === "/";
 
   const selectedKey = useMemo(() => {
     if (!pathname) return "daily";
@@ -97,7 +98,7 @@ export default function AppShell({ children }: AppShellProps) {
           />
           <MobileHeaderTitle>NowWhat</MobileHeaderTitle>
         </MobileHeader>
-        <MainContent>{children}</MainContent>
+        <MainContent $isCompanyPage={isCompanyPage}>{children}</MainContent>
       </MainLayout>
 
       <MobileDrawer
@@ -261,9 +262,9 @@ const MobileHeaderTitle = styled.div`
   color: #111827;
 `;
 
-const MainContent = styled(Layout.Content)`
+const MainContent = styled(Layout.Content)<{ $isCompanyPage: boolean }>`
   overflow: auto;
-  padding: 0 !important;
+  padding: ${({ $isCompanyPage }) => ($isCompanyPage ? "0" : "15px")} !important;
   font-size: 16px;
   --ant-font-size: 16px;
   --ant-font-size-sm: 14px;
