@@ -1,11 +1,13 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { AutoComplete, Button, Card, Divider, Space, Typography } from "antd";
-import { useMemo, useState } from "react";
+import { AutoComplete, Button, Card, Divider, Space, Spin, Typography } from "antd";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { useAtom } from "jotai";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
+import { searchCompanies } from "@/core/api/dart-search-company";
 import { companyState } from "@/core/state/onboarding";
 import { mockCompanies } from "@/core/mock/companies";
 import AppShell from "@/components/layout/app-shell";
@@ -16,28 +18,57 @@ export default function CompanyAuthPage() {
   const router = useRouter();
   const [, setCompany] = useAtom(companyState);
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [selectedCompanyName, setSelectedCompanyName] = useState<string | null>(null);
 
-  const options = useMemo(() => {
-    const filtered = query
-      ? mockCompanies.filter((c) => c.name.toLowerCase().includes(query.toLowerCase()))
-      : mockCompanies;
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedQuery(query.trim());
+    }, 250);
 
-    return filtered.map((c) => ({
-      value: c.name,
-      label: (
-        <OptionRow>
-          <span>{c.name}</span>
-          <Text type="secondary">대표: {c.ceo}</Text>
-        </OptionRow>
-      ),
-      companyId: c.id,
-    }));
+    return () => window.clearTimeout(timeout);
   }, [query]);
 
+  const companyQuery = useQuery({
+    queryKey: ["dart-search-company", debouncedQuery],
+    queryFn: () => searchCompanies(debouncedQuery),
+    enabled: debouncedQuery.length > 0,
+  });
+
+  const options = useMemo(() => {
+    const names =
+      companyQuery.data && companyQuery.data.length > 0
+        ? companyQuery.data
+        : companyQuery.error
+          ? mockCompanies
+              .filter((company) =>
+                company.name.toLowerCase().includes(query.toLowerCase()),
+              )
+              .map((company) => company.name)
+          : [];
+
+    return names.map((name) => ({
+      value: name,
+      label: (
+        <OptionRow>
+          <span>{name}</span>
+          <Text type="secondary">DART 검색 결과</Text>
+        </OptionRow>
+      ),
+      companyName: name,
+    }));
+  }, [companyQuery.data, companyQuery.error, query]);
+
   const selectedCompany = useMemo(
-    () => mockCompanies.find((c) => c.id === selectedId) ?? null,
-    [selectedId],
+    () =>
+      selectedCompanyName
+        ? {
+            id: selectedCompanyName,
+            name: selectedCompanyName,
+            ceo: "",
+          }
+        : null,
+    [selectedCompanyName],
   );
 
   const handleConfirm = () => {
@@ -56,7 +87,7 @@ export default function CompanyAuthPage() {
               매일 우리 회사 관련 뉴스 받아보고 전략 점검하기
             </Title>
             <Text type="secondary">
-              지금은 프론트엔드 목데이터로 동작합니다. API 연동은 나중에 붙일 수 있어요.
+              회사명을 입력하면 DART 검색 결과로 회사를 찾습니다.
             </Text>
           </Hero>
 
@@ -78,14 +109,23 @@ export default function CompanyAuthPage() {
                   onSearch={(v) => setQuery(v)}
                   onSelect={(value, option) => {
                     setQuery(value);
-                    setSelectedId((option as { companyId?: string }).companyId ?? null);
+                    setSelectedCompanyName(
+                      (option as { companyName?: string }).companyName ?? value,
+                    );
                   }}
                   onChange={(value) => {
                     setQuery(value);
-                    setSelectedId(null);
+                    setSelectedCompanyName(null);
                   }}
                   filterOption={false}
                   size="large"
+                  notFoundContent={
+                    companyQuery.isFetching ? (
+                      <SearchStatus>
+                        <Spin size="small" />
+                      </SearchStatus>
+                    ) : null
+                  }
                 />
                 <Button
                   type="primary"
@@ -96,6 +136,11 @@ export default function CompanyAuthPage() {
                   인증하기
                 </Button>
               </PickerRow>
+              {companyQuery.error && (
+                <Text type="danger">
+                  회사 검색 API 호출 실패: {companyQuery.error.message}
+                </Text>
+              )}
 
               <Divider style={{ margin: "16px 0" }} />
               <Space direction="vertical" size={6} style={{ width: "100%" }}>
@@ -191,6 +236,12 @@ const OptionRow = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+`;
+
+const SearchStatus = styled.div`
+  display: grid;
+  place-items: center;
+  padding: 12px;
 `;
 
 const MiniTable = styled.div`

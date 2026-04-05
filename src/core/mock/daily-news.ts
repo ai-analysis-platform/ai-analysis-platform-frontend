@@ -5,6 +5,8 @@ export type NewsItem = {
   url: string;
   source: string;
   tags: string[];
+  publishedAt?: string;
+  locale?: "KOR" | "ENG";
 };
 
 export const mockDailyNews: NewsItem[] = [

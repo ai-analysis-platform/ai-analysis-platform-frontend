@@ -21,10 +21,14 @@ const OPTIONS: Array<{
   label: string;
   description: string;
 }> = [
-  { value: "daily", label: "매일", description: "매일 오전에 키워드 뉴스 알림을 받아요." },
-  { value: "weekday", label: "평일만", description: "월~금 오전에만 알림을 받아요." },
-  { value: "weekly", label: "주 1회", description: "매주 월요일 오전에 주간 요약을 받아요." },
-  { value: "custom", label: "기타", description: "원하는 주기로 며칠에 한 번 받을지 설정해요." },
+  { value: "daily", label: "매일", description: "매일 키워드 뉴스 알림을 받아요." },
+  { value: "weekday", label: "평일만", description: "월~금에만 알림을 받아요." },
+  { value: "weekly", label: "주 1회", description: "매주 월요일 주간 요약을 받아요." },
+  {
+    value: "custom",
+    label: "기타",
+    description: "원하는 주기로 며칠에 한 번 받을지 설정해요.",
+  },
 ];
 
 export default function KeywordAlertFrequency({
@@ -46,9 +50,26 @@ export default function KeywordAlertFrequency({
 
   return (
     <Section>
-      <Text strong style={{ fontSize: 16 }}>
-        해당 키워드 알림 주기
-      </Text>
+      <HeaderRow>
+        <Text strong style={{ fontSize: 16 }}>
+          해당 키워드 알림 주기
+        </Text>
+        <TimeWrap>
+          <TimeLabel>알림 시간</TimeLabel>
+          <TimePicker
+            size="small"
+            format="HH:mm"
+            minuteStep={10}
+            value={timeValue}
+            onChange={(_, timeString) =>
+              onCustomTimeChange(
+                typeof timeString === "string" && timeString ? timeString : "09:00",
+              )
+            }
+            allowClear={false}
+          />
+        </TimeWrap>
+      </HeaderRow>
       <Grid>
         {OPTIONS.map((option) => (
           <OptionButton
@@ -73,19 +94,6 @@ export default function KeywordAlertFrequency({
             />
             <Text style={{ whiteSpace: "nowrap" }}>일에 한 번 뉴스 받기</Text>
           </CustomTextWrap>
-          <TimeWrap>
-            <TimeLabel>시간</TimeLabel>
-            <TimePicker
-              size="small"
-              format="HH:mm"
-              minuteStep={10}
-              value={timeValue}
-              onChange={(_, timeString) =>
-                onCustomTimeChange(typeof timeString === "string" && timeString ? timeString : "09:00")
-              }
-              allowClear={false}
-            />
-          </TimeWrap>
         </CustomRow>
       )}
     </Section>
@@ -99,7 +107,11 @@ const Section = styled.section`
   padding: 14px;
   border-radius: 12px;
   border: 1px solid rgba(59, 130, 246, 0.18);
-  background: linear-gradient(180deg, rgba(239, 246, 255, 0.6) 0%, rgba(255, 255, 255, 1) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(239, 246, 255, 0.6) 0%,
+    rgba(255, 255, 255, 1) 100%
+  );
 `;
 
 const Grid = styled.div`
@@ -112,10 +124,21 @@ const Grid = styled.div`
   }
 `;
 
-const CustomRow = styled.div`
+const HeaderRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+
+  @media (max-width: 860px) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+`;
+
+const CustomRow = styled.div`
+  display: flex;
+  align-items: center;
   gap: 12px;
   padding: 8px 4px 2px;
 `;
@@ -139,7 +162,8 @@ const TimeLabel = styled.span`
 
 const OptionButton = styled.button<{ $active: boolean }>`
   text-align: left;
-  border: 1px solid ${({ $active }) => ($active ? "var(--accent)" : "rgba(148, 163, 184, 0.5)")};
+  border: 1px solid
+    ${({ $active }) => ($active ? "var(--accent)" : "rgba(148, 163, 184, 0.5)")};
   background: ${({ $active }) => ($active ? "rgba(239, 246, 255, 0.9)" : "#ffffff")};
   border-radius: 10px;
   padding: 12px;
@@ -147,7 +171,9 @@ const OptionButton = styled.button<{ $active: boolean }>`
   flex-direction: column;
   gap: 6px;
   cursor: pointer;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 
   &:hover {
     border-color: var(--accent);

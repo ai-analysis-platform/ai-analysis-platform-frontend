@@ -1,16 +1,23 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { Button, Card, DatePicker, Divider, Space, Tag, Typography } from "antd";
+import { Alert, Button, Card, DatePicker, Divider, Space, Tag, Typography } from "antd";
 import { DownloadOutlined, HolderOutlined } from "@ant-design/icons";
 import { useAtom, useAtomValue } from "jotai";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import dayjs, { Dayjs } from "dayjs";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/layout/app-shell";
+import {
+  buildNewsResumeRequest,
+  fetchNewsResume,
+  normalizeNewsItemsByLocale,
+} from "@/core/api/news-resume";
+import { getStoredNewsKeywordSessionId } from "@/core/api/news-session";
 import {
   companyState,
   dailyNewsOrderState,
@@ -67,6 +74,24 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+type NewsColumnKey = "kor" | "eng";
+
+const NEWS_COLUMN_META: Record<
+  NewsColumnKey,
+  { title: string; locale: "KOR" | "ENG"; emptyLabel: string }
+> = {
+  kor: {
+    title: "국내 뉴스",
+    locale: "KOR",
+    emptyLabel: "국내 뉴스가 없습니다.",
+  },
+  eng: {
+    title: "글로벌 뉴스",
+    locale: "ENG",
+    emptyLabel: "글로벌 뉴스가 없습니다.",
+  },
+};
+
 export default function DailyNewsPage() {
   const router = useRouter();
   const company = useAtomValue(companyState);
@@ -77,7 +102,12 @@ export default function DailyNewsPage() {
   const [strategyOrder, setStrategyOrder] = useState<string[]>([]);
   const [draggingStrategyId, setDraggingStrategyId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const reportRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setSessionId(getStoredNewsKeywordSessionId());
+  }, []);
 
   const allSelected = useMemo(
     () => [...selection.industries, ...selection.competitors, ...selection.macros],
@@ -117,35 +147,84 @@ export default function DailyNewsPage() {
     return mockDailyNews.filter((n) => n.tags.some((t) => allSelected.includes(t)));
   }, [allSelected]);
 
-  const orderedNews = useMemo(() => {
-    const base = filteredNews;
-    if (order.length === 0) return base;
-    const orderIndex = new Map(order.map((id, idx) => [id, idx]));
-    return [...base].sort((a, b) => {
-      const ai = orderIndex.get(a.id);
-      const bi = orderIndex.get(b.id);
-      if (ai === undefined && bi === undefined) return 0;
-      if (ai === undefined) return 1;
-      if (bi === undefined) return -1;
-      return ai - bi;
-    });
-  }, [filteredNews, order]);
-
-  const ensureOrder = (items: NewsItem[]) => {
-    setOrder((prev) => {
-      const prevSet = new Set(prev);
-      const next = [...prev];
-      for (const item of items) {
-        if (!prevSet.has(item.id)) next.push(item.id);
+  const newsQuery = useQuery({
+    queryKey: ["news-resume", sessionId, selection],
+    queryFn: () => {
+      if (!sessionId) {
+        throw new Error("세션 ID가 없습니다.");
       }
-      return next;
+      return fetchNewsResume(buildNewsResumeRequest(selection, sessionId));
+    },
+    enabled: Boolean(company && sessionId && allSelected.length > 0),
+  });
+
+  const apiNews = useMemo(() => {
+    if (!newsQuery.data) {
+      return {
+        KOR: [] as NewsItem[],
+        ENG: [] as NewsItem[],
+      };
+    }
+    return normalizeNewsItemsByLocale(newsQuery.data, selection);
+  }, [newsQuery.data, selection]);
+
+  const fallbackNews = useMemo(
+    () => ({
+      KOR: filteredNews,
+      ENG: [] as NewsItem[],
+    }),
+    [filteredNews],
+  );
+
+  const visibleNews = useMemo(() => {
+    const shouldShowFallbackNews = Boolean(newsQuery.error);
+
+    if (newsQuery.isLoading) return { KOR: [] as NewsItem[], ENG: [] as NewsItem[] };
+    if (apiNews.KOR.length > 0 || apiNews.ENG.length > 0) return apiNews;
+    if (shouldShowFallbackNews) return fallbackNews;
+    return { KOR: [] as NewsItem[], ENG: [] as NewsItem[] };
+  }, [apiNews, fallbackNews, newsQuery.error, newsQuery.isLoading]);
+
+  const orderedNews = useMemo(() => {
+    const sortByOrder = (items: NewsItem[], ids: string[]) => {
+      if (ids.length === 0) return items;
+      const orderIndex = new Map(ids.map((id, idx) => [id, idx]));
+      return [...items].sort((a, b) => {
+        const ai = orderIndex.get(a.id);
+        const bi = orderIndex.get(b.id);
+        if (ai === undefined && bi === undefined) return 0;
+        if (ai === undefined) return 1;
+        if (bi === undefined) return -1;
+        return ai - bi;
+      });
+    };
+
+    return {
+      KOR: sortByOrder(visibleNews.KOR, order.kor),
+      ENG: sortByOrder(visibleNews.ENG, order.eng),
+    };
+  }, [visibleNews, order]);
+
+  const ensureOrder = (items: NewsItem[], column: NewsColumnKey) => {
+    setOrder((prev) => {
+      const prevIds = prev[column];
+      const prevSet = new Set(prevIds);
+      const nextIds = [...prevIds];
+      for (const item of items) {
+        if (!prevSet.has(item.id)) nextIds.push(item.id);
+      }
+      return {
+        ...prev,
+        [column]: nextIds,
+      };
     });
   };
 
   useEffect(() => {
-    ensureOrder(orderedNews);
+    ensureOrder(orderedNews.KOR, "kor");
+    ensureOrder(orderedNews.ENG, "eng");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredNews.length]);
+  }, [visibleNews.KOR.length, visibleNews.ENG.length]);
 
   useEffect(() => {
     setStrategyOrder((prev) => {
@@ -159,16 +238,20 @@ export default function DailyNewsPage() {
     });
   }, []);
 
-  const move = (sourceId: string, targetId: string) => {
+  const move = (sourceId: string, targetId: string, column: NewsColumnKey) => {
     if (sourceId === targetId) return;
     setOrder((prev) => {
-      const next = prev.length ? [...prev] : filteredNews.map((n) => n.id);
+      const baseIds = column === "kor" ? visibleNews.KOR : visibleNews.ENG;
+      const next = prev[column].length ? [...prev[column]] : baseIds.map((n) => n.id);
       const from = next.indexOf(sourceId);
       const to = next.indexOf(targetId);
       if (from === -1 || to === -1) return prev;
       next.splice(from, 1);
       next.splice(to, 0, sourceId);
-      return next;
+      return {
+        ...prev,
+        [column]: next,
+      };
     });
   };
 
@@ -269,49 +352,108 @@ export default function DailyNewsPage() {
 
         <Body>
           <Report ref={reportRef}>
+            {newsQuery.isLoading && (
+              <Alert
+                type="info"
+                showIcon
+                message="선택한 키워드와 세션으로 뉴스를 불러오는 중입니다."
+                style={{ marginBottom: 14 }}
+              />
+            )}
+            {newsQuery.error && (
+              <Alert
+                type="warning"
+                showIcon
+                message="뉴스 API 호출에 실패해 임시 데이터로 표시합니다."
+                description={newsQuery.error.message}
+                style={{ marginBottom: 14 }}
+              />
+            )}
+            {!sessionId && (
+              <Alert
+                type="warning"
+                showIcon
+                message="저장된 세션 ID가 없어 임시 데이터로 표시합니다."
+                style={{ marginBottom: 14 }}
+              />
+            )}
             <SectionHeader>
               <Title level={5} style={{ margin: 0 }}>
                 Daily News
               </Title>
               <Text type="secondary">드래그로 순서 조정</Text>
             </SectionHeader>
-            <List>
-              {orderedNews.map((news) => (
-                <NewsCard
-                  key={news.id}
-                  draggable
-                  onDragStart={() => setDraggingId(news.id)}
-                  onDragEnd={() => setDraggingId(null)}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (!draggingId || draggingId === news.id) return;
-                    move(draggingId, news.id);
-                  }}
+            <NewsColumns>
+              {(
+                Object.entries(NEWS_COLUMN_META) as Array<
+                  [NewsColumnKey, (typeof NEWS_COLUMN_META)[NewsColumnKey]]
                 >
-                  <Handle aria-hidden>
-                    <HolderOutlined />
-                  </Handle>
-                  <NewsBody>
-                    <Title level={5} style={{ margin: 0 }}>
-                      {renderHighlighted(news.title)}
-                    </Title>
-                    <BulletList>
-                      {news.bullets.map((b, idx) => (
-                        <li key={`${news.id}-${idx}`}>{renderHighlighted(b)}</li>
+              ).map(([column, meta]) => {
+                const items = column === "kor" ? orderedNews.KOR : orderedNews.ENG;
+
+                return (
+                  <NewsColumn key={column}>
+                    <ColumnHeader>
+                      <Title level={5} style={{ margin: 0 }}>
+                        {meta.title}
+                      </Title>
+                      <Text type="secondary">{items.length}건</Text>
+                    </ColumnHeader>
+                    <List>
+                      {items.length === 0 && (
+                        <Card>
+                          <Text type="secondary">
+                            {newsQuery.isLoading
+                              ? "뉴스를 불러오는 중입니다."
+                              : meta.emptyLabel}
+                          </Text>
+                        </Card>
+                      )}
+                      {items.map((news) => (
+                        <NewsCard
+                          key={news.id}
+                          draggable
+                          onDragStart={() => setDraggingId(news.id)}
+                          onDragEnd={() => setDraggingId(null)}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            if (!draggingId || draggingId === news.id) return;
+                            move(draggingId, news.id, column);
+                          }}
+                        >
+                          <Handle aria-hidden>
+                            <HolderOutlined />
+                          </Handle>
+                          <NewsBody>
+                            <Title level={5} style={{ margin: 0 }}>
+                              {renderHighlighted(news.title)}
+                            </Title>
+                            <BulletList>
+                              {news.bullets.map((b, idx) => (
+                                <li key={`${news.id}-${idx}`}>{renderHighlighted(b)}</li>
+                              ))}
+                            </BulletList>
+                            <Space size={8} wrap>
+                              {news.tags.slice(0, 4).map((t) => (
+                                <Tag key={`${news.id}-${t}`}>{t}</Tag>
+                              ))}
+                            </Space>
+                            {news.publishedAt && (
+                              <Text type="secondary">
+                                {dayjs(news.publishedAt).format("YYYY.MM.DD")}
+                              </Text>
+                            )}
+                            <Link href={news.url} target="_blank" rel="noreferrer">
+                              {news.source} · {news.url}
+                            </Link>
+                          </NewsBody>
+                        </NewsCard>
                       ))}
-                    </BulletList>
-                    <Space size={8} wrap>
-                      {news.tags.slice(0, 4).map((t) => (
-                        <Tag key={`${news.id}-${t}`}>{t}</Tag>
-                      ))}
-                    </Space>
-                    <Link href={news.url} target="_blank" rel="noreferrer">
-                      {news.source} · {news.url}
-                    </Link>
-                  </NewsBody>
-                </NewsCard>
-              ))}
-            </List>
+                    </List>
+                  </NewsColumn>
+                );
+              })}
+            </NewsColumns>
 
             <Divider style={{ margin: "14px 0" }} />
 
@@ -440,6 +582,24 @@ const List = styled.div`
   flex-direction: column;
   gap: 10px;
   margin-top: 10px;
+`;
+
+const NewsColumns = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 10px;
+`;
+
+const NewsColumn = styled.section`
+  min-width: 0;
+`;
+
+const ColumnHeader = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 `;
 
 const NewsCard = styled.div`

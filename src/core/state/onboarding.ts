@@ -28,4 +28,7 @@ export const keywordAlertCustomTimeState = atom<string>("09:00");
 
 export const selectedDailyDateState = atom<Date>(new Date());
 
-export const dailyNewsOrderState = atom<string[]>([]);
+export const dailyNewsOrderState = atom<{ kor: string[]; eng: string[] }>({
+  kor: [],
+  eng: [],
+});

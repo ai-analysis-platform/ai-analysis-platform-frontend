@@ -4,10 +4,13 @@ import styled from "@emotion/styled";
 import { Button, Card, Input, Space, Steps, Tag, Typography } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAtom, useAtomValue } from "jotai";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import KeywordAlertFrequency from "@/components/keyword/keyword-alert-frequency";
+import { getOrCreateNewsKeywordSessionId } from "@/core/api/news-session";
+import { fetchNewsKeywords, normalizeKeywordSelection } from "@/core/api/news-keyword";
 import {
   companyState,
   keywordAlertCustomDaysState,
@@ -93,7 +96,6 @@ const CATEGORY_POOL: Record<KeywordCategoryKey, string[]> = {
 
 const DEFAULT_VISIBLE = 10;
 const RECOMMEND_STEP = 5;
-
 export default function KeywordSetupPage() {
   const router = useRouter();
   const company = useAtomValue(companyState);
@@ -117,20 +119,74 @@ export default function KeywordSetupPage() {
     macros: false,
   });
 
-  useEffect(() => {
-    const isEmpty =
-      selection.industries.length === 0 &&
-      selection.competitors.length === 0 &&
-      selection.macros.length === 0;
-    if (!isEmpty) return;
+  const keywordQuery = useQuery({
+    queryKey: ["news-keywords", company?.name],
+    queryFn: () => {
+      const sessionId = getOrCreateNewsKeywordSessionId();
+      return fetchNewsKeywords({
+        query: (company?.name ?? "").trim(),
+        days_back: 7,
+        max_articles: 10,
+        language: "ko",
+        session_id: sessionId,
+      });
+    },
+    enabled: Boolean(company?.name),
+  });
 
-    setSelection((prev) => ({
-      ...prev,
-      industries: INDUSTRY_POOL.slice(0, DEFAULT_VISIBLE),
-      competitors: COMPETITOR_POOL.slice(0, DEFAULT_VISIBLE),
-      macros: MACRO_POOL.slice(0, DEFAULT_VISIBLE),
-    }));
-  }, [selection, setSelection]);
+  useEffect(() => {
+    if (!keywordQuery.data) return;
+
+    const normalized = normalizeKeywordSelection(keywordQuery.data);
+    const nextPool: Record<KeywordCategoryKey, string[]> = {
+      industries:
+        normalized.industries.length > 0
+          ? normalized.industries
+          : CATEGORY_POOL.industries,
+      competitors:
+        normalized.competitors.length > 0
+          ? normalized.competitors
+          : CATEGORY_POOL.competitors,
+      macros: normalized.macros.length > 0 ? normalized.macros : CATEGORY_POOL.macros,
+    };
+
+    setSelection((prev) => {
+      const isSelectionEmpty =
+        prev.industries.length === 0 &&
+        prev.competitors.length === 0 &&
+        prev.macros.length === 0;
+      if (!isSelectionEmpty) return prev;
+      return {
+        ...prev,
+        industries: nextPool.industries.slice(0, DEFAULT_VISIBLE),
+        competitors: nextPool.competitors.slice(0, DEFAULT_VISIBLE),
+        macros: nextPool.macros.slice(0, DEFAULT_VISIBLE),
+      };
+    });
+  }, [keywordQuery.data, setSelection]);
+
+  const normalizedKeywords = keywordQuery.data
+    ? normalizeKeywordSelection(keywordQuery.data)
+    : null;
+  const shouldHideDefaultsWhileLoading =
+    Boolean(company) && keywordQuery.isLoading && !keywordQuery.data;
+  const categoryPool: Record<KeywordCategoryKey, string[]> = {
+    industries: shouldHideDefaultsWhileLoading
+      ? []
+      : normalizedKeywords?.industries.length
+        ? normalizedKeywords.industries
+        : CATEGORY_POOL.industries,
+    competitors: shouldHideDefaultsWhileLoading
+      ? []
+      : normalizedKeywords?.competitors.length
+        ? normalizedKeywords.competitors
+        : CATEGORY_POOL.competitors,
+    macros: shouldHideDefaultsWhileLoading
+      ? []
+      : normalizedKeywords?.macros.length
+        ? normalizedKeywords.macros
+        : CATEGORY_POOL.macros,
+  };
 
   const toggle = (key: KeywordCategoryKey, value: string) => {
     setSelection((prev) => {
@@ -172,7 +228,7 @@ export default function KeywordSetupPage() {
     0;
 
   const handleRecommendMore = (key: KeywordCategoryKey) => {
-    const pool = CATEGORY_POOL[key];
+    const pool = categoryPool[key];
     const next = Math.min(pool.length, visibleCount[key] + RECOMMEND_STEP);
     setVisibleCount((prev) => ({ ...prev, [key]: next }));
     setNoMore((prev) => ({ ...prev, [key]: next >= pool.length }));
@@ -213,13 +269,21 @@ export default function KeywordSetupPage() {
                 </Text>
               </Banner>
             )}
+            {company && keywordQuery.isLoading && (
+              <Text type="secondary">추천 키워드를 불러오는 중입니다...</Text>
+            )}
+            {company && keywordQuery.error && (
+              <Text type="danger">
+                키워드 API 호출 실패: {keywordQuery.error.message} (기본 키워드로 표시 중)
+              </Text>
+            )}
 
             <Grid>
               {(
                 [
-                  { key: "industries", pool: INDUSTRY_POOL },
-                  { key: "competitors", pool: COMPETITOR_POOL },
-                  { key: "macros", pool: MACRO_POOL },
+                  { key: "industries", pool: categoryPool.industries },
+                  { key: "competitors", pool: categoryPool.competitors },
+                  { key: "macros", pool: categoryPool.macros },
                 ] as const
               ).map(({ key, pool }) => {
                 const visible = pool.slice(0, visibleCount[key]);

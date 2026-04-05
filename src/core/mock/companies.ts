@@ -7,4 +7,5 @@ export const mockCompanies: Company[] = [
   { id: "tsmc", name: "TSMC", ceo: "박지민" },
   { id: "qualcomm", name: "퀄컴", ceo: "최윤아" },
   { id: "pwc", name: "프라이스워터하우스쿠퍼스컨설팅", ceo: "문호기" },
+  { id: "아모레퍼시픽", name: "아모레퍼시픽", ceo: "서경배" },
 ];
