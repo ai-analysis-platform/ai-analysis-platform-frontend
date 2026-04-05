@@ -5,7 +5,7 @@ import { Button, Card, Input, Space, Steps, Tag, Typography } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useStore } from "jotai";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import KeywordAlertFrequency from "@/components/keyword/keyword-alert-frequency";
@@ -16,7 +16,9 @@ import {
   keywordAlertCustomDaysState,
   keywordAlertCustomTimeState,
   keywordAlertFrequencyState,
+  type KeywordSelection,
   keywordRecommendationsState,
+  keywordSelectionsState,
   keywordSelectionState,
 } from "@/core/state/onboarding";
 import AppShell from "@/components/layout/app-shell";
@@ -99,6 +101,11 @@ const CATEGORY_POOL: Record<KeywordCategoryKey, string[]> = {
 
 const DEFAULT_VISIBLE = 10;
 const RECOMMEND_STEP = 5;
+const EMPTY_SELECTION: Record<KeywordCategoryKey, string[]> = {
+  industries: [],
+  competitors: [],
+  macros: [],
+};
 
 function withFallbackKeywords(selection: Record<KeywordCategoryKey, string[]>) {
   return {
@@ -112,14 +119,29 @@ function withFallbackKeywords(selection: Record<KeywordCategoryKey, string[]>) {
   };
 }
 
+function isSameSelection(
+  left?: Record<KeywordCategoryKey, string[]>,
+  right?: Record<KeywordCategoryKey, string[]>,
+) {
+  if (!left || !right) return false;
+
+  return (
+    left.industries.join("|") === right.industries.join("|") &&
+    left.competitors.join("|") === right.competitors.join("|") &&
+    left.macros.join("|") === right.macros.join("|")
+  );
+}
+
 export default function KeywordSetupPage() {
   const router = useRouter();
   const goBack = useSafeBack("/" as Route);
+  const store = useStore();
   const company = useAtomValue(companyState);
   const [selection, setSelection] = useAtom(keywordSelectionState);
   const [keywordRecommendations, setKeywordRecommendations] = useAtom(
     keywordRecommendationsState,
   );
+  const [keywordSelections, setKeywordSelections] = useAtom(keywordSelectionsState);
   const [alertFrequency, setAlertFrequency] = useAtom(keywordAlertFrequencyState);
   const [alertCustomDays, setAlertCustomDays] = useAtom(keywordAlertCustomDaysState);
   const [alertCustomTime, setAlertCustomTime] = useAtom(keywordAlertCustomTimeState);
@@ -140,11 +162,48 @@ export default function KeywordSetupPage() {
   });
   const companyName = company?.name.trim() ?? "";
   const cachedKeywords = companyName ? keywordRecommendations[companyName] : undefined;
+  const cachedSelection = companyName ? keywordSelections[companyName] : undefined;
+
+  const syncCompanySelection = (
+    nextSelectionOrUpdater:
+      | KeywordSelection
+      | ((prev: KeywordSelection) => KeywordSelection),
+  ) => {
+    const prevSelection = store.get(keywordSelectionState);
+    const nextSelection =
+      typeof nextSelectionOrUpdater === "function"
+        ? nextSelectionOrUpdater(prevSelection)
+        : nextSelectionOrUpdater;
+
+    if (isSameSelection(prevSelection, nextSelection)) {
+      return;
+    }
+
+    setSelection(nextSelection);
+
+    if (!companyName) return;
+
+    setKeywordSelections((prev) => {
+      const storedSelection = prev[companyName];
+      if (isSameSelection(storedSelection, nextSelection)) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [companyName]: {
+          industries: [...nextSelection.industries],
+          competitors: [...nextSelection.competitors],
+          macros: [...nextSelection.macros],
+        },
+      };
+    });
+  };
 
   const keywordQuery = useQuery({
     queryKey: ["news-keywords", companyName],
     queryFn: () => {
-      const sessionId = getOrCreateNewsKeywordSessionId();
+      const sessionId = getOrCreateNewsKeywordSessionId(companyName);
       return fetchNewsKeywords({
         query: companyName,
         days_back: 7,
@@ -158,18 +217,28 @@ export default function KeywordSetupPage() {
   });
 
   useEffect(() => {
+    if (!companyName) return;
+
+    const nextSelection = cachedSelection ?? EMPTY_SELECTION;
+    setSelection((prev) =>
+      isSameSelection(prev, nextSelection)
+        ? prev
+        : {
+            industries: [...nextSelection.industries],
+            competitors: [...nextSelection.competitors],
+            macros: [...nextSelection.macros],
+          },
+    );
+  }, [cachedSelection, companyName, setSelection]);
+
+  useEffect(() => {
     if (!companyName || !keywordQuery.data) return;
 
     const nextPool = withFallbackKeywords(normalizeKeywordSelection(keywordQuery.data));
 
     setKeywordRecommendations((prev) => {
       const prevPool = prev[companyName];
-      if (
-        prevPool &&
-        prevPool.industries.join("|") === nextPool.industries.join("|") &&
-        prevPool.competitors.join("|") === nextPool.competitors.join("|") &&
-        prevPool.macros.join("|") === nextPool.macros.join("|")
-      ) {
+      if (isSameSelection(prevPool, nextPool)) {
         return prev;
       }
 
@@ -187,9 +256,9 @@ export default function KeywordSetupPage() {
       : null;
 
   useEffect(() => {
-    if (!recommendedKeywords) return;
+    if (!recommendedKeywords || cachedSelection !== undefined) return;
 
-    setSelection((prev) => {
+    syncCompanySelection((prev) => {
       const isSelectionEmpty =
         prev.industries.length === 0 &&
         prev.competitors.length === 0 &&
@@ -202,7 +271,7 @@ export default function KeywordSetupPage() {
         macros: recommendedKeywords.macros.slice(0, DEFAULT_VISIBLE),
       };
     });
-  }, [recommendedKeywords, setSelection]);
+  }, [cachedSelection, recommendedKeywords]);
 
   const shouldHideDefaultsWhileLoading =
     Boolean(company) && keywordQuery.isLoading && !recommendedKeywords;
@@ -225,7 +294,7 @@ export default function KeywordSetupPage() {
   };
 
   const toggle = (key: KeywordCategoryKey, value: string) => {
-    setSelection((prev) => {
+    syncCompanySelection((prev) => {
       const exists = prev[key].includes(value);
       return {
         ...prev,
@@ -242,7 +311,7 @@ export default function KeywordSetupPage() {
       .filter(Boolean);
     if (nextValues.length === 0) return;
 
-    setSelection((prev) => {
+    syncCompanySelection((prev) => {
       const existing = new Set(prev[key]);
       const merged = [...prev[key]];
       for (const value of nextValues) {
@@ -256,7 +325,10 @@ export default function KeywordSetupPage() {
   };
 
   const removeCustom = (key: KeywordCategoryKey, value: string) => {
-    setSelection((prev) => ({ ...prev, [key]: prev[key].filter((k) => k !== value) }));
+    syncCompanySelection((prev) => ({
+      ...prev,
+      [key]: prev[key].filter((k) => k !== value),
+    }));
   };
 
   const canContinue =

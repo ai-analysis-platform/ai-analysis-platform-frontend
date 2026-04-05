@@ -23,6 +23,7 @@ export const keywordSelectionState = atom<KeywordSelection>({
 });
 
 export const keywordRecommendationsState = atom<Record<string, KeywordSelection>>({});
+export const keywordSelectionsState = atom<Record<string, KeywordSelection>>({});
 
 export const keywordAlertFrequencyState = atom<KeywordAlertFrequency>("daily");
 export const keywordAlertCustomDaysState = atom<number>(3);

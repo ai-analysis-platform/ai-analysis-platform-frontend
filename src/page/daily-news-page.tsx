@@ -79,8 +79,8 @@ export default function DailyNewsPage() {
   const reportRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setSessionId(getStoredNewsKeywordSessionId());
-  }, []);
+    setSessionId(company?.name ? getStoredNewsKeywordSessionId(company.name) : null);
+  }, [company?.name]);
 
   const allSelected = useMemo(
     () => [...selection.industries, ...selection.competitors, ...selection.macros],

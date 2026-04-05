@@ -59,16 +59,21 @@ export default function CompanyAuthPage() {
     }));
   }, [companyQuery.data, companyQuery.error, query]);
 
+  const resolvedCompanyName = useMemo(
+    () => selectedCompanyName?.trim() || query.trim(),
+    [query, selectedCompanyName],
+  );
+
   const selectedCompany = useMemo(
     () =>
-      selectedCompanyName
+      resolvedCompanyName
         ? {
-            id: selectedCompanyName,
-            name: selectedCompanyName,
+            id: resolvedCompanyName,
+            name: resolvedCompanyName,
             ceo: "",
           }
         : null,
-    [selectedCompanyName],
+    [resolvedCompanyName],
   );
 
   const handleConfirm = () => {
