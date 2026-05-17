@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { Button, Card, Input, Space, Steps, Tag, Typography } from "antd";
+import { Alert, Button, Card, Input, Space, Tag, Typography } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -88,15 +88,21 @@ const MACRO_POOL = [
 type KeywordCategoryKey = "industries" | "competitors" | "macros";
 
 const CATEGORY_LABEL: Record<KeywordCategoryKey, string> = {
-  industries: "산업군",
-  competitors: "경쟁사",
-  macros: "매크로 환경",
+  industries: "산업군 키워드",
+  competitors: "경쟁사 키워드",
+  macros: "매크로 환경 키워드",
 };
 
 const CATEGORY_POOL: Record<KeywordCategoryKey, string[]> = {
   industries: INDUSTRY_POOL,
   competitors: COMPETITOR_POOL,
   macros: MACRO_POOL,
+};
+
+const CATEGORY_EXAMPLE: Record<KeywordCategoryKey, string> = {
+  industries: "예: DRAM, NAND, Logic, 패키징, 데이터센터, HBM",
+  competitors: "예: SK하이닉스, 마이크론, TSMC, 엔비디아",
+  macros: "예: 정책, 공급망, 환율, 금리, 수출 규제",
 };
 
 const DEFAULT_VISIBLE = 10;
@@ -134,7 +140,7 @@ function isSameSelection(
 
 export default function KeywordSetupPage() {
   const router = useRouter();
-  const goBack = useSafeBack("/" as Route);
+  const goBack = useSafeBack("/company" as Route);
   const store = useStore();
   const company = useAtomValue(companyState);
   const [selection, setSelection] = useAtom(keywordSelectionState);
@@ -161,6 +167,7 @@ export default function KeywordSetupPage() {
     macros: false,
   });
   const companyName = company?.name.trim() ?? "";
+  const companyEnglishName = company?.englishName?.trim() ?? "";
   const cachedKeywords = companyName ? keywordRecommendations[companyName] : undefined;
   const cachedSelection = companyName ? keywordSelections[companyName] : undefined;
 
@@ -201,15 +208,17 @@ export default function KeywordSetupPage() {
   };
 
   const keywordQuery = useQuery({
-    queryKey: ["news-keywords", companyName],
+    queryKey: ["news-keywords", companyName, companyEnglishName],
     queryFn: () => {
       const sessionId = getOrCreateNewsKeywordSessionId(companyName);
       return fetchNewsKeywords({
-        query: companyName,
+        company_kor: companyName,
+        company_eng: companyEnglishName || "",
         days_back: 7,
         max_articles: 10,
         language: "ko",
         session_id: sessionId,
+        regenerate: false,
       });
     },
     enabled: Boolean(companyName) && !cachedKeywords,
@@ -354,15 +363,6 @@ export default function KeywordSetupPage() {
               {company ? `${company.name} 기준` : "회사 인증 후 진행하는 단계입니다."}
             </Text>
           </div>
-          <Steps
-            size="small"
-            current={1}
-            items={[
-              { title: "회사 인증" },
-              { title: "키워드 선택" },
-              { title: "데일리 뉴스" },
-            ]}
-          />
         </TopBar>
 
         <CardWrapper>
@@ -378,7 +378,7 @@ export default function KeywordSetupPage() {
               <Banner>
                 <Text>
                   먼저 회사 인증이 필요합니다.{" "}
-                  <BannerLink onClick={() => router.push("/" as Route)}>
+                  <BannerLink onClick={() => router.push("/company" as Route)}>
                     회사 선택으로 이동
                   </BannerLink>
                 </Text>
@@ -391,12 +391,6 @@ export default function KeywordSetupPage() {
                 description="추천 목록이 도착하면 바로 선택할 수 있습니다."
               />
             )}
-            {company && keywordQuery.error && (
-              <Text type="danger">
-                키워드 API 호출 실패: {keywordQuery.error.message} (기본 키워드로 표시 중)
-              </Text>
-            )}
-
             <Grid>
               {(
                 [
@@ -418,7 +412,10 @@ export default function KeywordSetupPage() {
                     key={key}
                     title={
                       <TitleRow>
-                        <span>{CATEGORY_LABEL[key]}</span>
+                        <TitleMeta>
+                          <span>{CATEGORY_LABEL[key]}</span>
+                          <Text type="secondary">{CATEGORY_EXAMPLE[key]}</Text>
+                        </TitleMeta>
                         <Button
                           size="small"
                           type="primary"
@@ -436,7 +433,10 @@ export default function KeywordSetupPage() {
                         </Button>
                       </TitleRow>
                     }
-                    styles={{ body: { padding: 16 } }}
+                    styles={{
+                      header: { padding: "10px 24px" },
+                      body: { padding: 16 },
+                    }}
                   >
                     <Space direction="vertical" size={12} style={{ width: "100%" }}>
                       <TagGrid>
@@ -496,6 +496,13 @@ export default function KeywordSetupPage() {
                 );
               })}
             </Grid>
+            {company && keywordQuery.error && (
+              <Alert
+                showIcon
+                type="warning"
+                message="추천 키워드를 불러오지 못해 기본 키워드로 표시 중입니다."
+              />
+            )}
             <KeywordAlertFrequency
               value={alertFrequency}
               customDays={alertCustomDays}
@@ -526,23 +533,17 @@ const Container = styled.div`
   width: 100%;
   max-width: 1100px;
   margin: 0 auto;
-  font-size: 18px;
-  --ant-font-size: 18px;
-  --ant-font-size-sm: 16px;
-  --ant-font-size-lg: 20px;
+  font-size: 16px;
+  --ant-font-size: 16px;
+  --ant-font-size-sm: 14px;
+  --ant-font-size-lg: 18px;
 `;
 
 const TopBar = styled.div`
   margin: 0 0 16px;
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+  align-items: flex-start;
   gap: 16px;
-
-  @media (max-width: 860px) {
-    flex-direction: column;
-    align-items: flex-start;
-  }
 `;
 
 const CardWrapper = styled(Card)`
@@ -564,8 +565,13 @@ const CardBodyOverlay = styled.div`
 
 const Grid = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
+  align-items: start;
+
+  > .ant-card {
+    min-width: 0;
+  }
 
   @media (max-width: 1020px) {
     grid-template-columns: 1fr;
@@ -574,10 +580,31 @@ const Grid = styled.div`
 
 const TitleRow = styled.div`
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: nowrap;
+
+  button {
+    flex-shrink: 0;
+  }
+`;
+
+const TitleMeta = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+
+  span {
+    font-weight: 700;
+    color: var(--accent-strong);
+  }
+
+  .ant-typography {
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: normal;
+  }
 `;
 
 const TagGrid = styled.div`
@@ -598,6 +625,10 @@ const CustomRow = styled.div`
   grid-template-columns: 1fr auto;
   gap: 10px;
   align-items: center;
+
+  > * {
+    min-width: 0;
+  }
 
   @media (max-width: 640px) {
     grid-template-columns: 1fr;

@@ -3,9 +3,10 @@
 import styled from "@emotion/styled";
 import { Button, Drawer, Layout, Menu } from "antd";
 import {
+  AppstoreOutlined,
+  BankOutlined,
   CloseOutlined,
   CalendarOutlined,
-  KeyOutlined,
   MenuOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
@@ -25,10 +26,16 @@ const NAV_ITEMS: Array<{
   disabled?: boolean;
 }> = [
   {
-    key: "company",
-    label: "회사 선택",
-    icon: <KeyOutlined />,
+    key: "dashboard",
+    label: "대시보드",
+    icon: <AppstoreOutlined />,
     href: "/",
+  },
+  {
+    key: "company",
+    label: "회사 리포트 추가",
+    icon: <BankOutlined />,
+    href: "/company",
   },
   {
     key: "keywords",
@@ -44,11 +51,12 @@ export default function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const isCompanyPage = pathname === "/";
+  const isFullBleedPage = pathname === "/" || pathname === "/company";
 
   const selectedKey = useMemo(() => {
     if (!pathname) return "daily";
-    if (pathname === "/") return "company";
+    if (pathname === "/") return "dashboard";
+    if (pathname === "/company") return "company";
     if (pathname.startsWith("/setup/keywords")) return "keywords";
     if (pathname.startsWith("/daily")) return "daily";
     return "daily";
@@ -98,7 +106,7 @@ export default function AppShell({ children }: AppShellProps) {
           />
           <MobileHeaderTitle>NowWhat</MobileHeaderTitle>
         </MobileHeader>
-        <MainContent $isCompanyPage={isCompanyPage}>{children}</MainContent>
+        <MainContent $isFullBleedPage={isFullBleedPage}>{children}</MainContent>
       </MainLayout>
 
       <MobileDrawer
@@ -193,7 +201,7 @@ const SideMenu = styled(Menu)`
   }
 
   .ant-menu-item-selected {
-    background: rgba(127, 107, 255, 0.22) !important;
+    background: rgba(91, 77, 255, 0.18) !important;
   }
 
   .ant-menu-item-selected,
@@ -262,9 +270,11 @@ const MobileHeaderTitle = styled.div`
   color: #111827;
 `;
 
-const MainContent = styled(Layout.Content)<{ $isCompanyPage: boolean }>`
+const MainContent = styled(Layout.Content, {
+  shouldForwardProp: (prop) => prop !== "$isFullBleedPage",
+})<{ $isFullBleedPage: boolean }>`
   overflow: auto;
-  padding: ${({ $isCompanyPage }) => ($isCompanyPage ? "0" : "15px")} !important;
+  padding: ${({ $isFullBleedPage }) => ($isFullBleedPage ? "0" : "15px")} !important;
   font-size: 16px;
   --ant-font-size: 16px;
   --ant-font-size-sm: 14px;

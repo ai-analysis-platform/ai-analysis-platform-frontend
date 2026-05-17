@@ -4,11 +4,13 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8
 const NEWS_KEYWORD_PATH = "/api/api/news/keyword";
 
 export type NewsKeywordRequest = {
-  query: string;
+  company_kor: string;
+  company_eng: string;
   days_back: number;
   max_articles: number;
   language: string;
   session_id?: string;
+  regenerate?: boolean;
 };
 
 export type NewsKeywordResponse = {

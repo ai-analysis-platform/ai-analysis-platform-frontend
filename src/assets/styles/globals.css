@@ -5,7 +5,9 @@
   --card-border: #e5e7eb;
   --foreground: #111827;
   --muted: #6b7280;
-  --accent: #7f6bff;
+  --accent: #5b4dff;
+  --accent-soft: #efeefe;
+  --accent-strong: #4338ca;
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;

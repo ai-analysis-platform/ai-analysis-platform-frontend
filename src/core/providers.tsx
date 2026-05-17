@@ -21,7 +21,7 @@ export default function Providers({ children }: ProvidersProps) {
         <ConfigProvider
           theme={{
             token: {
-              colorPrimary: "#7f6bff",
+              colorPrimary: "#5b4dff",
               colorBgBase: "#ffffff",
               fontFamily: "var(--font-sans)",
               colorTextBase: "var(--foreground)",

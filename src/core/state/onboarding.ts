@@ -3,6 +3,7 @@ import { atom } from "jotai";
 export type Company = {
   id: string;
   name: string;
+  englishName: string | null;
   ceo: string;
 };
 

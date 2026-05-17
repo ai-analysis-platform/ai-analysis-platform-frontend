@@ -52,10 +52,10 @@ export default function KeywordAlertFrequency({
     <Section>
       <HeaderRow>
         <Text strong style={{ fontSize: 16 }}>
-          해당 키워드 알림 주기
+          뉴스 발송 주기
         </Text>
         <TimeWrap>
-          <TimeLabel>알림 시간</TimeLabel>
+          <TimeLabel>발송 시간</TimeLabel>
           <TimePicker
             size="small"
             format="HH:mm"
@@ -106,10 +106,10 @@ const Section = styled.section`
   gap: 10px;
   padding: 14px;
   border-radius: 12px;
-  border: 1px solid rgba(59, 130, 246, 0.18);
+  border: 1px solid rgba(91, 77, 255, 0.2);
   background: linear-gradient(
     180deg,
-    rgba(239, 246, 255, 0.6) 0%,
+    rgba(239, 238, 254, 0.72) 0%,
     rgba(255, 255, 255, 1) 100%
   );
 `;
@@ -164,7 +164,7 @@ const OptionButton = styled.button<{ $active: boolean }>`
   text-align: left;
   border: 1px solid
     ${({ $active }) => ($active ? "var(--accent)" : "rgba(148, 163, 184, 0.5)")};
-  background: ${({ $active }) => ($active ? "rgba(239, 246, 255, 0.9)" : "#ffffff")};
+  background: ${({ $active }) => ($active ? "rgba(239, 238, 254, 0.95)" : "#ffffff")};
   border-radius: 10px;
   padding: 12px;
   display: flex;

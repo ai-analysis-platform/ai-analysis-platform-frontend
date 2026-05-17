@@ -266,7 +266,7 @@ export default function DailyNewsPage() {
             <Text type="secondary">
               데일리 뉴스는 회사/키워드 설정 후 확인할 수 있어요.
             </Text>
-            <Button type="primary" onClick={() => router.push("/" as Route)}>
+            <Button type="primary" onClick={() => router.push("/company" as Route)}>
               회사 선택으로 이동
             </Button>
           </Space>
@@ -280,10 +280,10 @@ export default function DailyNewsPage() {
       <Container>
         <TopBar>
           <div>
-            <Title level={3} style={{ margin: 0 }}>
-              {dayjs(selectedDate).format("YYYY. MM. DD")} NowWhat Daily News &amp;{" "}
-              Strategy
-            </Title>
+            <PageTitle>
+              <span>{dayjs(selectedDate).format("YYYY. MM. DD")} NowWhat</span>
+              <span>Daily News &amp; Strategy</span>
+            </PageTitle>
             <Text type="secondary">{company.name}</Text>
           </div>
           <Actions>
@@ -336,10 +336,10 @@ export default function DailyNewsPage() {
                 />
               )}
               <SectionHeader>
-                <Title level={5} style={{ margin: 0 }}>
-                  Daily News
-                </Title>
-                <Text type="secondary">드래그로 순서 조정</Text>
+                <SectionTitleGroup>
+                  <SectionTitle>Daily News</SectionTitle>
+                  <SectionHelper>드래그 순서 조정</SectionHelper>
+                </SectionTitleGroup>
               </SectionHeader>
               <NewsColumns>
                 {(
@@ -351,14 +351,14 @@ export default function DailyNewsPage() {
                   const isExpanded = expandedColumns[column];
                   const hasMoreItems = items.length > DEFAULT_VISIBLE_COUNT;
                   const visibleItems =
-                    hasMoreItems && !isExpanded ? items.slice(0, DEFAULT_VISIBLE_COUNT) : items;
+                    hasMoreItems && !isExpanded
+                      ? items.slice(0, DEFAULT_VISIBLE_COUNT)
+                      : items;
 
                   return (
                     <NewsColumn key={column}>
                       <ColumnHeader>
-                        <Title level={5} style={{ margin: 0 }}>
-                          {meta.title}
-                        </Title>
+                        <ColumnTitle>{meta.title}</ColumnTitle>
                         <Text type="secondary">{items.length}건</Text>
                       </ColumnHeader>
                       <List>
@@ -439,10 +439,9 @@ export default function DailyNewsPage() {
               <Divider style={{ margin: "14px 0" }} />
 
               <SectionHeader>
-                <Title level={5} style={{ margin: 0 }}>
-                  Strategy Check
-                </Title>
-                <Text type="secondary">Resume API 전략 요약</Text>
+                <SectionTitleGroup>
+                  <SectionTitle>Strategy Check</SectionTitle>
+                </SectionTitleGroup>
               </SectionHeader>
 
               <StrategyPanel>
@@ -463,16 +462,15 @@ export default function DailyNewsPage() {
             <Card styles={{ body: { padding: 16 } }}>
               <Space direction="vertical" size={10} style={{ width: "100%" }}>
                 <Title level={5} style={{ margin: 0 }}>
-                  설정
+                  바로가기
                 </Title>
-                <Text type="secondary">
-                  여기 뭐 기타 사이드 기능이 들어와도 좋을거같아요
-                </Text>
                 <Button onClick={goBackToKeywords}>이전 단계로 돌아가기</Button>
                 <Button onClick={() => router.push("/setup/keywords" as Route)}>
                   키워드 다시 선택
                 </Button>
-                <Button onClick={() => router.push("/" as Route)}>회사 다시 선택</Button>
+                <Button onClick={() => router.push("/company" as Route)}>
+                  회사 다시 선택
+                </Button>
               </Space>
             </Card>
           </Side>
@@ -492,7 +490,7 @@ const TopBar = styled.div`
   margin: 0 0 14px;
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 16px;
 
   @media (max-width: 860px) {
@@ -501,11 +499,41 @@ const TopBar = styled.div`
   }
 `;
 
+const PageTitle = styled.h1`
+  margin: 0;
+  font-size: clamp(28px, 3.4vw, 36px);
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+
+  span:last-of-type {
+    display: inline;
+    margin-left: 0.35ch;
+  }
+
+  @media (max-width: 640px) {
+    font-size: 22px;
+
+    span:last-of-type {
+      display: block;
+      margin-left: 0;
+    }
+  }
+`;
+
 const Actions = styled.div`
   display: flex;
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+
+  @media (max-width: 640px) {
+    width: 100%;
+
+    .ant-picker,
+    button {
+      width: 100%;
+    }
+  }
 `;
 
 const Body = styled.div`
@@ -535,14 +563,36 @@ const Report = styled.div`
 
 const SectionHeader = styled.div`
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 
   @media (max-width: 640px) {
-    flex-direction: column;
-    align-items: flex-start;
+    gap: 6px;
   }
+`;
+
+const SectionTitleGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+const SectionTitle = styled.h2`
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  color: #0f172a;
+
+  @media (max-width: 640px) {
+    font-size: 22px;
+  }
+`;
+
+const SectionHelper = styled.span`
+  font-size: 13px;
+  color: var(--muted);
 `;
 
 const List = styled.div`
@@ -568,6 +618,16 @@ const ColumnHeader = styled.div`
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.26);
+`;
+
+const ColumnTitle = styled.h3`
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--accent-strong);
 `;
 
 const ExpandButtonWrap = styled.div`
@@ -595,6 +655,7 @@ const NewsCard = styled.div`
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
     padding: 14px;
+    cursor: default;
   }
 `;
 
@@ -603,6 +664,10 @@ const Handle = styled.div`
   display: grid;
   place-items: start center;
   padding-top: 2px;
+
+  @media (max-width: 640px) {
+    display: none;
+  }
 `;
 
 const NewsBody = styled.div`

@@ -1,6 +1,11 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 const DART_SEARCH_COMPANY_PATH = "/api/api/news/api/dart-search-company";
 
+export type DartCompanySearchItem = {
+  corp_name: string;
+  corp_name_eng: string | null;
+};
+
 async function parseError(response: Response): Promise<string> {
   const fallback = `Company search request failed (${response.status})`;
 
@@ -12,7 +17,7 @@ async function parseError(response: Response): Promise<string> {
   }
 }
 
-export async function searchCompanies(query: string): Promise<string[]> {
+export async function searchCompanies(query: string): Promise<DartCompanySearchItem[]> {
   const url = new URL(`${API_BASE_URL}${DART_SEARCH_COMPANY_PATH}`);
   url.searchParams.set("query", query);
 
@@ -27,5 +32,5 @@ export async function searchCompanies(query: string): Promise<string[]> {
     throw new Error(await parseError(response));
   }
 
-  return (await response.json()) as string[];
+  return (await response.json()) as DartCompanySearchItem[];
 }
