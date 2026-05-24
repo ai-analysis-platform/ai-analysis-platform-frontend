@@ -13,6 +13,7 @@ import {
 import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { Route } from "next";
+import KakaoLoginPanel from "@/components/auth/kakao-login-panel";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -73,27 +74,33 @@ export default function AppShell({ children }: AppShellProps) {
         breakpoint="lg"
         collapsedWidth={72}
       >
-        <Brand>
-          <BrandMark />
-          {!collapsed && <BrandText>NowWhat</BrandText>}
-        </Brand>
+        <DesktopSiderInner>
+          <div>
+            <Brand>
+              <BrandMark />
+              {!collapsed && <BrandText>NowWhat</BrandText>}
+            </Brand>
 
-        <SideMenu
-          theme="dark"
-          mode="inline"
-          selectedKeys={selectedKey ? [selectedKey] : []}
-          items={NAV_ITEMS.map((item) => ({
-            key: item.key,
-            icon: item.icon,
-            label: item.label,
-            disabled: item.disabled,
-            onClick: () => {
-              if (!item.href) return;
-              setMobileMenuOpen(false);
-              router.push(item.href as Route);
-            },
-          }))}
-        />
+            <SideMenu
+              theme="dark"
+              mode="inline"
+              selectedKeys={selectedKey ? [selectedKey] : []}
+              items={NAV_ITEMS.map((item) => ({
+                key: item.key,
+                icon: item.icon,
+                label: item.label,
+                disabled: item.disabled,
+                onClick: () => {
+                  if (!item.href) return;
+                  setMobileMenuOpen(false);
+                  router.push(item.href as Route);
+                },
+              }))}
+            />
+          </div>
+
+          <KakaoLoginPanel collapsed={collapsed} />
+        </DesktopSiderInner>
       </DesktopSider>
 
       <MainLayout>
@@ -145,6 +152,7 @@ export default function AppShell({ children }: AppShellProps) {
               },
             }))}
           />
+          <KakaoLoginPanel />
         </DrawerShell>
       </MobileDrawer>
     </RootLayout>
@@ -234,6 +242,13 @@ const BrandText = styled.div`
   color: rgba(255, 255, 255, 0.92);
   font-weight: 700;
   letter-spacing: 0.2px;
+`;
+
+const DesktopSiderInner = styled.div`
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 `;
 
 const MainLayout = styled(Layout)`

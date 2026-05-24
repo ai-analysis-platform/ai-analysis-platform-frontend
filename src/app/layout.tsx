@@ -1,21 +1,10 @@
 import "@ant-design/v5-patch-for-react-19";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import Providers from "@/core/providers";
 import EmotionRegistry from "@/core/emotion-registry";
 import "antd/dist/reset.css";
 import "@/assets/styles/globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "NowWhat",
@@ -30,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body>
         <AntdRegistry>
           <EmotionRegistry>
             <Providers>{children}</Providers>
