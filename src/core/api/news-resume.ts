@@ -37,6 +37,8 @@ export type NewsResumeResponse = {
     selected_keywords?: Partial<NewsResumeRequest["selected_keywords"]>;
     routing_decision?: string | null;
     news_count?: number;
+    kor_news?: NewsResumeArticle[];
+    eng_news?: NewsResumeArticle[];
     news_data?: NewsResumeArticle[] | NewsResumeGroupedArticles;
     strategy_markdown?: string;
     final_response?: string;
@@ -133,16 +135,22 @@ export function normalizeNewsItemsByLocale(
     .filter(Boolean);
 
   const fallbackTags = Array.from(new Set(selectedKeywords));
+  const korNews = payload.result?.kor_news;
+  const engNews = payload.result?.eng_news;
   const rawNewsData = payload.result?.news_data;
 
-  const groupedNewsData: Record<NewsLocale, NewsResumeArticle[]> = Array.isArray(
-    rawNewsData,
-  )
-    ? { KOR: rawNewsData, ENG: [] }
-    : {
-        KOR: rawNewsData?.KOR ?? [],
-        ENG: rawNewsData?.ENG ?? [],
-      };
+  const groupedNewsData: Record<NewsLocale, NewsResumeArticle[]> =
+    Array.isArray(korNews) || Array.isArray(engNews)
+      ? {
+          KOR: korNews ?? [],
+          ENG: engNews ?? [],
+        }
+      : Array.isArray(rawNewsData)
+        ? { KOR: rawNewsData, ENG: [] }
+        : {
+            KOR: rawNewsData?.KOR ?? [],
+            ENG: rawNewsData?.ENG ?? [],
+          };
 
   return {
     KOR: groupedNewsData.KOR.map((article, index) => ({
