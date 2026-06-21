@@ -30,13 +30,14 @@ const NAV_ITEMS: Array<{
     key: "dashboard",
     label: "대시보드",
     icon: <AppstoreOutlined />,
-    href: "/",
+    href: "/dashboard",
+    disabled: true,
   },
   {
     key: "company",
-    label: "회사 리포트 추가",
+    label: "회사 검색",
     icon: <BankOutlined />,
-    href: "/company",
+    href: "/",
   },
   {
     key: "keywords",
@@ -52,12 +53,13 @@ export default function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const isFullBleedPage = pathname === "/" || pathname === "/company";
+  const isFullBleedPage =
+    pathname === "/" || pathname === "/company" || pathname === "/dashboard";
 
   const selectedKey = useMemo(() => {
     if (!pathname) return "daily";
-    if (pathname === "/") return "dashboard";
-    if (pathname === "/company") return "company";
+    if (pathname === "/" || pathname === "/company") return "company";
+    if (pathname === "/dashboard") return "dashboard";
     if (pathname.startsWith("/setup/keywords")) return "keywords";
     if (pathname.startsWith("/daily")) return "daily";
     return "daily";
@@ -145,6 +147,7 @@ export default function AppShell({ children }: AppShellProps) {
               key: item.key,
               icon: item.icon,
               label: item.label,
+              disabled: item.disabled,
               onClick: () => {
                 if (!item.href) return;
                 setMobileMenuOpen(false);

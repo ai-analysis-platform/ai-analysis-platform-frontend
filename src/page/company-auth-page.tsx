@@ -118,9 +118,9 @@ export default function CompanyAuthPage() {
           <CardWrapper>
             <CardBody>
               <SectionTitle>
-                <Text strong style={{ fontSize: 16 }}>
+                {/* <Text strong style={{ fontSize: 16 }}>
                   우리 회사 인증
-                </Text>
+                </Text> */}
               </SectionTitle>
 
               <PickerRow>
