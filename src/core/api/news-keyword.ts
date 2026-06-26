@@ -1,7 +1,7 @@
 import type { KeywordSelection } from "@/core/state/onboarding";
+import { buildApiUrl } from "@/core/api/url";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
-const NEWS_KEYWORD_PATH = "/api/api/news/keyword";
+const NEWS_KEYWORD_PATH = "/api/news/keyword";
 
 export type NewsKeywordRequest = {
   company_kor: string;
@@ -126,7 +126,7 @@ export function normalizeKeywordSelection(
 export async function fetchNewsKeywords(
   request: NewsKeywordRequest,
 ): Promise<NewsKeywordResponse> {
-  const response = await fetch(`${API_BASE_URL}${NEWS_KEYWORD_PATH}`, {
+  const response = await fetch(buildApiUrl(NEWS_KEYWORD_PATH), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

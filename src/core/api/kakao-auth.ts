@@ -1,4 +1,5 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+import { buildApiUrl } from "@/core/api/url";
+
 const KAKAO_REST_API_KEY = process.env.NEXT_PUBLIC_KAKAO_REST_API_KEY ?? "";
 const KAKAO_REDIRECT_URI =
   process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI ??
@@ -101,7 +102,7 @@ export function createKakaoAuthorizeUrl() {
 export async function exchangeKakaoAuthorizationCode(
   request: KakaoAuthExchangeRequest,
 ): Promise<KakaoAuthExchangeResponse> {
-  const response = await fetch(`${API_BASE_URL}${KAKAO_AUTH_CALLBACK_PATH}`, {
+  const response = await fetch(buildApiUrl(KAKAO_AUTH_CALLBACK_PATH), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

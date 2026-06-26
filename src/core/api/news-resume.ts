@@ -1,8 +1,8 @@
 import type { KeywordSelection } from "@/core/state/onboarding";
 import type { NewsItem } from "@/core/mock/daily-news";
+import { buildApiUrl } from "@/core/api/url";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
-const NEWS_RESUME_PATH = "/api/api/news/resume";
+const NEWS_RESUME_PATH = "/api/news/resume";
 
 export type NewsResumeRequest = {
   selected_keywords: {
@@ -179,7 +179,7 @@ export function normalizeNewsItemsByLocale(
 export async function fetchNewsResume(
   request: NewsResumeRequest,
 ): Promise<NewsResumeResponse> {
-  const response = await fetch(`${API_BASE_URL}${NEWS_RESUME_PATH}`, {
+  const response = await fetch(buildApiUrl(NEWS_RESUME_PATH), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

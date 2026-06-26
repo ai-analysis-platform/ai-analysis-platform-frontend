@@ -1,5 +1,6 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
-const DART_SEARCH_COMPANY_PATH = "/api/api/news/api/dart-search-company";
+import { buildApiUrl } from "@/core/api/url";
+
+const DART_SEARCH_COMPANY_PATH = "/api/dart-search-company";
 
 export type DartCompanySearchItem = {
   corp_name: string;
@@ -18,7 +19,7 @@ async function parseError(response: Response): Promise<string> {
 }
 
 export async function searchCompanies(query: string): Promise<DartCompanySearchItem[]> {
-  const url = new URL(`${API_BASE_URL}${DART_SEARCH_COMPANY_PATH}`);
+  const url = new URL(buildApiUrl(DART_SEARCH_COMPANY_PATH));
   url.searchParams.set("query", query);
 
   const response = await fetch(url.toString(), {
